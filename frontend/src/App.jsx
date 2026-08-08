@@ -11,6 +11,9 @@ import Register from './pages/Register';
 import Cart from './pages/Cart';
 import Category from './pages/Category';
 import Wishlist from './pages/Wishlist';
+import Checkout from './pages/Checkout';
+import Orders from './pages/Orders';
+import OrderDetail from './pages/OrderDetail';
 
 function App() {
   return (
@@ -29,6 +32,9 @@ function App() {
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/category/:slug" element={<Category />} />
                 <Route path="/wishlist" element={<Wishlist />} />
+                <Route path="/checkout" element={<Checkout />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/orders/:id" element={<OrderDetail />} />
               </Routes>
             </main>
             <Footer />
