@@ -1,7 +1,3 @@
-// Synthetic shopper traffic generator for ShopSmart baseline data.
-// Simulates realistic browsing funnels with time-of-day/day-of-week
-// intensity variation, plus periodic "sale event" bursts.
-
 const BASE_URL = process.env.TARGET_URL || 'https://shopsmart-aisre.duckdns.org';
 
 function randomInt(min, max) {
@@ -40,13 +36,15 @@ async function apiPost(path, body, headers = {}) {
   }
 }
 
-// --- Traffic intensity model ---
+async function logActivity(botId, action, detail) {
+  await apiPost('/api/bot-activity', { botId, action, detail });
+}
 
 function getMode() {
   const now = new Date();
-  const day = now.getUTCDay(); // 0 = Sunday, 6 = Saturday
+  const day = now.getUTCDay();
   const hour = now.getUTCHours();
-  const istHour = (hour + 5) % 24; // rough IST offset, good enough for shaping traffic
+  const istHour = (hour + 5) % 24;
 
   const isWeekend = day === 0 || day === 6;
   const isEvening = istHour >= 18 && istHour <= 23;
@@ -59,9 +57,6 @@ function getMode() {
   return { name: 'weekday', concurrency: 5, delayMs: [3000, 7000] };
 }
 
-// Sale event: roughly a 2-hour burst window, once every ~5 days, deterministic
-// from the date so all bot instances agree on when it's active without
-// needing shared state.
 function isSaleEvent() {
   const now = new Date();
   const dayOfYear = Math.floor((now - new Date(now.getUTCFullYear(), 0, 0)) / 86400000);
@@ -69,52 +64,49 @@ function isSaleEvent() {
   return dayOfYear % 5 === 0 && hour >= 12 && hour < 14;
 }
 
-// --- Shopper behavior funnel ---
-
 async function shopperSession(id, saleMode) {
   try {
     const categoriesData = await apiGet('/api/categories');
     if (!categoriesData) return;
 
-    // Browse home occasionally
     if (Math.random() < 0.3) {
       await apiGet('/api/products?sort=rating&limit=8');
+      await logActivity(id, 'browse_home', 'top rated products');
       await sleep(randomInt(500, 1500));
     }
 
-    // Browse a category
     const category = pick(categoriesData.categories);
     const categoryData = await apiGet(`/api/categories/${category.slug}`);
     if (!categoryData || categoryData.products.length === 0) return;
+    await logActivity(id, 'browse_category', category.name);
     await sleep(randomInt(800, 2000));
 
-    // View 1-3 product details
     const viewCount = randomInt(1, 3);
     let viewedProduct = null;
     for (let i = 0; i < viewCount; i++) {
       viewedProduct = pick(categoryData.products);
       await apiGet(`/api/products/${viewedProduct.slug}`);
+      await logActivity(id, 'view_product', viewedProduct.name);
       await sleep(randomInt(1000, 3000));
     }
 
-    // Sometimes search instead
     if (Math.random() < 0.15) {
       const terms = ['shirt', 'phone', 'book', 'shoes', 'kettle', 'watch'];
-      await apiGet(`/api/products/search?q=${pick(terms)}`);
+      const term = pick(terms);
+      await apiGet(`/api/products/search?q=${term}`);
+      await logActivity(id, 'search', `"${term}"`);
       await sleep(randomInt(800, 1800));
     }
 
-    // Conversion funnel: baseline ~25% add-to-cart, boosted in sale mode
     const addToCartChance = saleMode ? 0.55 : 0.25;
     if (viewedProduct && Math.random() < addToCartChance) {
       await apiPost('/api/cart/add', { productId: viewedProduct.id, quantity: randomInt(1, 2) });
+      await logActivity(id, 'add_to_cart', viewedProduct.name);
       await sleep(randomInt(1000, 2500));
 
-      // Of those who add to cart, some proceed toward checkout intent
-      // (we don't complete real orders here — that needs auth + address,
-      // and creating fake orders would pollute real business metrics)
       if (Math.random() < 0.4) {
         await apiGet('/api/cart');
+        await logActivity(id, 'view_cart', null);
       }
     }
 
@@ -130,8 +122,6 @@ async function runBotLoop(id) {
     const saleMode = isSaleEvent();
     const effectiveConcurrency = saleMode ? mode.concurrency * 2 : mode.concurrency;
 
-    // Each bot only acts if it's "within" the current concurrency budget —
-    // simple way to scale active bots up/down without restarting containers.
     if (id <= effectiveConcurrency) {
       await shopperSession(id, saleMode);
     }

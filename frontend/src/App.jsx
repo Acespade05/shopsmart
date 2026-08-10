@@ -16,6 +16,7 @@ import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
+import LiveActivity from './pages/LiveActivity';
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
                 <Route path="/orders/:id" element={<OrderDetail />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/activity" element={<LiveActivity />} />
               </Routes>
             </main>
             <Footer />
