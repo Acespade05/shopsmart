@@ -68,5 +68,14 @@ services:
       - app
       - frontend
 
+traffic-generator:
+    build: ./traffic-generator
+    container_name: shopsmart_traffic_bot
+    restart: unless-stopped
+    environment:
+      TARGET_URL: https://shopsmart-aisre.duckdns.org
+    depends_on:
+      - nginx
+
 volumes:
   postgres_data:
