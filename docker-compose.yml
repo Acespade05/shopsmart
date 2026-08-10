@@ -68,7 +68,7 @@ services:
       - app
       - frontend
 
-traffic-generator:
+  traffic-generator:
     build: ./traffic-generator
     container_name: shopsmart_traffic_bot
     restart: unless-stopped
