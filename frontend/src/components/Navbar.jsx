@@ -53,29 +53,29 @@ export default function Navbar() {
           </Link>
 
           {user ? (
-  <div className="flex items-center gap-4">
-    <Link to="/orders" className="hover:text-emerald transition-colors">
-      Orders
-    </Link>
-    <Link to="/profile" className="hover:text-emerald transition-colors">
-      Profile
-    </Link>
-    {user.role === 'admin' && (
-      <Link to="/admin" className="hover:text-emerald transition-colors">
-        Admin
-      </Link>
-    )}
-    <button
-      onClick={() => {
-        logout();
-        navigate('/');
-      }}
-      className="text-ink/60 hover:text-ink transition-colors"
-    >
-      Log out
-    </button>
-  </div>
-) : (
+            <div className="flex items-center gap-4">
+              <Link to="/orders" className="hover:text-emerald transition-colors">
+                Orders
+              </Link>
+              <Link to="/profile" className="hover:text-emerald transition-colors">
+                Profile
+              </Link>
+              {user.role === 'admin' && (
+                <Link to="/admin" className="hover:text-emerald transition-colors">
+                  Admin
+                </Link>
+              )}
+              <button
+                onClick={() => {
+                  logout();
+                  navigate('/');
+                }}
+                className="text-ink/60 hover:text-ink transition-colors"
+              >
+                Log out
+              </button>
+            </div>
+          ) : (
             <Link to="/login" className="btn-primary">
               Sign in
             </Link>
