@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import DiscountProgress from '../components/DiscountProgress';
 
 export default function Cart() {
   const { cart, subtotal, updateItem, removeItem } = useCart();
@@ -29,7 +30,11 @@ export default function Cart() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-display font-semibold mb-8">Your cart</h1>
+      <h1 className="text-3xl font-display font-semibold mb-6">Your cart</h1>
+
+      <div className="mb-8">
+        <DiscountProgress subtotal={subtotal} />
+      </div>
 
       <div className="space-y-6 mb-10">
         {cart.items.map((item) => (
@@ -69,7 +74,7 @@ export default function Cart() {
             <span className="text-ink/60">Subtotal</span>
             <span className="font-mono">₹{subtotal.toLocaleString('en-IN')}</span>
           </div>
-          <p className="text-xs text-ink/40 mb-4">Shipping and discounts calculated at checkout.</p>
+          <p className="text-xs text-ink/40 mb-4">Final discount calculated at checkout.</p>
           <button onClick={handleCheckout} className="btn-primary w-full">
             Proceed to checkout
           </button>

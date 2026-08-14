@@ -5,11 +5,46 @@ const { getCart, saveCart, clearCart } = require('../services/cacheService');
 const { processPayment } = require('../services/paymentService');
 
 const router = express.Router();
-router.use(authenticate);
 
 function cartOwnerId(req) {
-  return `user:${req.user.id}`;
+  return req.user?.id ? `user:${req.user.id}` : `session:${req.sessionId}`;
 }
+
+// GET /api/checkout/tiers — public. Returns the progressive discount tiers
+// so the frontend can render a "spend ₹X more to unlock Y% off" progress bar
+// without hardcoding thresholds that could drift out of sync with the backend.
+router.get('/tiers', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT code, value, min_order_value FROM discount_codes
+       WHERE code LIKE 'TIER%' AND is_active = true
+       ORDER BY min_order_value ASC`
+    );
+    res.json({
+      tiers: result.rows.map((r) => ({
+        code: r.code,
+        discountPercent: parseFloat(r.value),
+        minOrderValue: parseFloat(r.min_order_value),
+      })),
+    });
+  } catch (err) {
+    console.error('Get tiers error', err);
+    res.status(500).json({ error: 'Failed to fetch discount tiers' });
+  }
+});
+
+// Finds the best-matching automatic tier discount for a given subtotal.
+async function findBestTierDiscount(subtotal) {
+  const result = await pool.query(
+    `SELECT code, type, value FROM discount_codes
+     WHERE code LIKE 'TIER%' AND is_active = true AND min_order_value <= $1
+     ORDER BY value DESC LIMIT 1`,
+    [subtotal]
+  );
+  return result.rows[0] || null;
+}
+
+router.use(authenticate);
 
 // POST /api/checkout/start — validate cart, mark checkout intent
 router.post('/start', async (req, res) => {
@@ -20,21 +55,25 @@ router.post('/start', async (req, res) => {
     }
 
     const subtotal = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    res.json({ cart, subtotal: parseFloat(subtotal.toFixed(2)) });
+    const autoTier = await findBestTierDiscount(subtotal);
+
+    res.json({
+      cart,
+      subtotal: parseFloat(subtotal.toFixed(2)),
+      autoTier: autoTier
+        ? { code: autoTier.code, discountPercent: parseFloat(autoTier.value) }
+        : null,
+    });
   } catch (err) {
     console.error('Checkout start error', err);
     res.status(500).json({ error: 'Failed to start checkout' });
   }
 });
 
-// POST /api/checkout/apply-coupon
-//
-// NOTE: ShopSmart spec Section 7 lists an intentional recursive-call chaos
-// scenario here ("discount code applies to itself"), used later to trigger
-// the `kill_loop` remediation action. That failure mode is deliberately NOT
-// wired in yet — it gets toggled on in Week 6 alongside the other chaos
-// scenarios, behind a scenario flag, so it can't accidentally crash the app
-// during normal development. This version is a safe, working implementation.
+// POST /api/checkout/apply-coupon — manual code entry. If the manual code's
+// discount is smaller than what the automatic tier already unlocks, the
+// tier discount is returned instead — customers should never get less than
+// their automatic tier just because they typed in a weaker code.
 router.post('/apply-coupon', async (req, res) => {
   try {
     const { code } = req.body;
@@ -67,15 +106,25 @@ router.post('/apply-coupon', async (req, res) => {
       });
     }
 
-    const discountAmount =
+    let bestCode = discount;
+    let discountAmount =
       discount.type === 'percentage'
         ? subtotal * (parseFloat(discount.value) / 100)
         : parseFloat(discount.value);
 
+    const autoTier = await findBestTierDiscount(subtotal);
+    if (autoTier) {
+      const tierAmount = subtotal * (parseFloat(autoTier.value) / 100);
+      if (tierAmount > discountAmount) {
+        bestCode = autoTier;
+        discountAmount = tierAmount;
+      }
+    }
+
     const total = Math.max(subtotal - discountAmount, 0);
 
     res.json({
-      code: discount.code,
+      code: bestCode.code,
       subtotal: parseFloat(subtotal.toFixed(2)),
       discount: parseFloat(discountAmount.toFixed(2)),
       total: parseFloat(total.toFixed(2)),
@@ -106,7 +155,9 @@ router.post('/payment', async (req, res) => {
   }
 });
 
-// POST /api/checkout/confirm — place the order
+// POST /api/checkout/confirm — place the order. If no discountCode is
+// explicitly passed, automatically applies the best matching progressive
+// tier discount based on subtotal (Zepto/Zomato-style automatic discount).
 router.post('/confirm', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -122,7 +173,6 @@ router.post('/confirm', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Lock and verify stock for every item before committing the order
     for (const item of cart.items) {
       const stockResult = await client.query('SELECT stock FROM products WHERE id = $1 FOR UPDATE', [
         item.productId,
@@ -135,17 +185,49 @@ router.post('/confirm', async (req, res) => {
 
     const subtotal = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     let discount = 0;
+    let appliedCodeId = null;
 
+    // Determine the best applicable discount: explicit manual code vs.
+    // automatic tier — never stacked, whichever gives the bigger discount wins.
+    let manualDiscount = 0;
+    let manualCode = null;
     if (discountCode) {
       const dcResult = await client.query(
         `SELECT * FROM discount_codes WHERE code = $1 AND is_active = true`,
         [discountCode.toUpperCase()]
       );
       if (dcResult.rows.length > 0) {
-        const dc = dcResult.rows[0];
-        discount = dc.type === 'percentage' ? subtotal * (parseFloat(dc.value) / 100) : parseFloat(dc.value);
-        await client.query('UPDATE discount_codes SET used_count = used_count + 1 WHERE id = $1', [dc.id]);
+        manualCode = dcResult.rows[0];
+        manualDiscount =
+          manualCode.type === 'percentage'
+            ? subtotal * (parseFloat(manualCode.value) / 100)
+            : parseFloat(manualCode.value);
       }
+    }
+
+    const autoTierResult = await client.query(
+      `SELECT * FROM discount_codes
+       WHERE code LIKE 'TIER%' AND is_active = true AND min_order_value <= $1
+       ORDER BY value DESC LIMIT 1`,
+      [subtotal]
+    );
+    let autoDiscount = 0;
+    let autoCode = null;
+    if (autoTierResult.rows.length > 0) {
+      autoCode = autoTierResult.rows[0];
+      autoDiscount = subtotal * (parseFloat(autoCode.value) / 100);
+    }
+
+    if (manualDiscount >= autoDiscount && manualCode) {
+      discount = manualDiscount;
+      appliedCodeId = manualCode.id;
+    } else if (autoCode) {
+      discount = autoDiscount;
+      appliedCodeId = autoCode.id;
+    }
+
+    if (appliedCodeId) {
+      await client.query('UPDATE discount_codes SET used_count = used_count + 1 WHERE id = $1', [appliedCodeId]);
     }
 
     const total = Math.max(subtotal - discount, 0);

@@ -3,9 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import DiscountProgress from '../components/DiscountProgress';
 
 export default function Checkout() {
-  const { cart, subtotal, clearCart, refreshCart } = useCart();
+  const { cart, subtotal, refreshCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -19,9 +20,9 @@ export default function Checkout() {
   const [couponCode, setCouponCode] = useState('');
   const [couponResult, setCouponResult] = useState(null);
   const [couponError, setCouponError] = useState('');
+  const [autoTier, setAutoTier] = useState(null);
 
   const [paymentMethod, setPaymentMethod] = useState('card');
-  const [step, setStep] = useState('address'); // address -> payment -> placing
   const [error, setError] = useState('');
   const [placing, setPlacing] = useState(false);
 
@@ -40,6 +41,9 @@ export default function Checkout() {
       if (def) setSelectedAddressId(def.id);
       else if (res.data.addresses.length > 0) setSelectedAddressId(res.data.addresses[0].id);
       else setShowNewAddress(true);
+    });
+    api.post('/checkout/start', {}).then((res) => {
+      setAutoTier(res.data.autoTier);
     });
   }, [user]);
 
@@ -66,7 +70,13 @@ export default function Checkout() {
     }
   }
 
-  const total = couponResult ? couponResult.total : subtotal;
+  // Effective discount: manual coupon if applied, otherwise automatic tier
+  const effectiveDiscount = couponResult
+    ? couponResult.discount
+    : autoTier
+    ? subtotal * (autoTier.discountPercent / 100)
+    : 0;
+  const total = subtotal - effectiveDiscount;
 
   async function handlePlaceOrder() {
     setError('');
@@ -96,11 +106,14 @@ export default function Checkout() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-display font-semibold mb-10">Checkout</h1>
+      <h1 className="text-3xl font-display font-semibold mb-6">Checkout</h1>
+
+      <div className="mb-10">
+        <DiscountProgress subtotal={subtotal} />
+      </div>
 
       <div className="grid md:grid-cols-3 gap-10">
         <div className="md:col-span-2 space-y-10">
-          {/* Address */}
           <section>
             <h2 className="text-lg font-display font-semibold mb-4">1. Delivery address</h2>
 
@@ -203,9 +216,11 @@ export default function Checkout() {
             )}
           </section>
 
-          {/* Coupon */}
           <section>
-            <h2 className="text-lg font-display font-semibold mb-4">2. Discount code</h2>
+            <h2 className="text-lg font-display font-semibold mb-4">2. Have a code?</h2>
+            <p className="text-xs text-ink/40 mb-3">
+              Optional — your best available discount is already applied automatically above.
+            </p>
             <div className="flex gap-3">
               <input
                 placeholder="Enter code"
@@ -225,7 +240,6 @@ export default function Checkout() {
             )}
           </section>
 
-          {/* Payment */}
           <section>
             <h2 className="text-lg font-display font-semibold mb-4">3. Payment method</h2>
             <div className="space-y-2">
@@ -253,7 +267,6 @@ export default function Checkout() {
           </section>
         </div>
 
-        {/* Summary */}
         <div>
           <div className="border border-line rounded-sm p-6 sticky top-24">
             <h2 className="font-display font-semibold text-lg mb-4">Order summary</h2>
@@ -274,10 +287,10 @@ export default function Checkout() {
                 <span className="text-ink/60">Subtotal</span>
                 <span className="font-mono">₹{subtotal.toLocaleString('en-IN')}</span>
               </div>
-              {couponResult && (
+              {effectiveDiscount > 0 && (
                 <div className="flex justify-between text-emerald">
                   <span>Discount</span>
-                  <span className="font-mono">−₹{couponResult.discount.toLocaleString('en-IN')}</span>
+                  <span className="font-mono">−₹{effectiveDiscount.toLocaleString('en-IN')}</span>
                 </div>
               )}
               <div className="flex justify-between font-semibold text-base pt-2 border-t border-line">
