@@ -40,9 +40,6 @@ export default function Navbar() {
           <Link to="/wishlist" className="hover:text-emerald transition-colors">
             Wishlist
           </Link>
-          <Link to="/activity" className="hover:text-emerald transition-colors">
-            Live
-          </Link>
           <Link to="/cart" className="relative hover:text-emerald transition-colors">
             Cart
             {itemCount > 0 && (

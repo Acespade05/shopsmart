@@ -10,9 +10,18 @@ function cartOwnerId(req) {
   return req.user?.id ? `user:${req.user.id}` : `session:${req.sessionId}`;
 }
 
-// GET /api/checkout/tiers — public. Returns the progressive discount tiers
-// so the frontend can render a "spend ₹X more to unlock Y% off" progress bar
-// without hardcoding thresholds that could drift out of sync with the backend.
+async function findBestTierDiscount(subtotal) {
+  const result = await pool.query(
+    `SELECT code, type, value FROM discount_codes
+     WHERE code LIKE 'TIER%' AND is_active = true AND min_order_value <= $1
+     ORDER BY value DESC LIMIT 1`,
+    [subtotal]
+  );
+  return result.rows[0] || null;
+}
+
+// GET /api/checkout/tiers — PUBLIC, no auth. Must be registered before any
+// router.use(authenticate) call below, so it's never gated behind a token.
 router.get('/tiers', async (req, res) => {
   try {
     const result = await pool.query(
@@ -33,17 +42,7 @@ router.get('/tiers', async (req, res) => {
   }
 });
 
-// Finds the best-matching automatic tier discount for a given subtotal.
-async function findBestTierDiscount(subtotal) {
-  const result = await pool.query(
-    `SELECT code, type, value FROM discount_codes
-     WHERE code LIKE 'TIER%' AND is_active = true AND min_order_value <= $1
-     ORDER BY value DESC LIMIT 1`,
-    [subtotal]
-  );
-  return result.rows[0] || null;
-}
-
+// --- everything below this line requires authentication ---
 router.use(authenticate);
 
 // POST /api/checkout/start — validate cart, mark checkout intent
@@ -70,10 +69,7 @@ router.post('/start', async (req, res) => {
   }
 });
 
-// POST /api/checkout/apply-coupon — manual code entry. If the manual code's
-// discount is smaller than what the automatic tier already unlocks, the
-// tier discount is returned instead — customers should never get less than
-// their automatic tier just because they typed in a weaker code.
+// POST /api/checkout/apply-coupon
 router.post('/apply-coupon', async (req, res) => {
   try {
     const { code } = req.body;
@@ -135,7 +131,7 @@ router.post('/apply-coupon', async (req, res) => {
   }
 });
 
-// POST /api/checkout/payment — process mock payment
+// POST /api/checkout/payment
 router.post('/payment', async (req, res) => {
   try {
     const { amount, method } = req.body;
@@ -155,9 +151,7 @@ router.post('/payment', async (req, res) => {
   }
 });
 
-// POST /api/checkout/confirm — place the order. If no discountCode is
-// explicitly passed, automatically applies the best matching progressive
-// tier discount based on subtotal (Zepto/Zomato-style automatic discount).
+// POST /api/checkout/confirm
 router.post('/confirm', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -184,11 +178,7 @@ router.post('/confirm', async (req, res) => {
     }
 
     const subtotal = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    let discount = 0;
-    let appliedCodeId = null;
 
-    // Determine the best applicable discount: explicit manual code vs.
-    // automatic tier — never stacked, whichever gives the bigger discount wins.
     let manualDiscount = 0;
     let manualCode = null;
     if (discountCode) {
@@ -218,6 +208,8 @@ router.post('/confirm', async (req, res) => {
       autoDiscount = subtotal * (parseFloat(autoCode.value) / 100);
     }
 
+    let discount = 0;
+    let appliedCodeId = null;
     if (manualDiscount >= autoDiscount && manualCode) {
       discount = manualDiscount;
       appliedCodeId = manualCode.id;
