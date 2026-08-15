@@ -77,5 +77,15 @@ services:
     depends_on:
       - nginx
 
+  patient-metrics-agent:
+    build: ./patient-metrics-agent
+    container_name: shopsmart_metrics_agent
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - metrics_data:/data
+
 volumes:
   postgres_data:
+  metrics_data:
