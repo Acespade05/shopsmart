@@ -1,3 +1,4 @@
+import ShopSmartBackground from './components/ShopSmartBackground';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -16,15 +17,21 @@ import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
-import AdminLayout from './pages/admin/AdminLayout';
+import LiveActivity from './pages/LiveActivity';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
-          <div className="min-h-screen flex flex-col">
+
+          {/* Animated ShopSmart background */}
+          <ShopSmartBackground />
+
+          <div className="min-h-screen flex flex-col relative z-10">
+
             <Navbar />
+
             <main className="flex-1">
               <Routes>
                 <Route path="/" element={<Home />} />
@@ -40,11 +47,14 @@ function App() {
                 <Route path="/orders/:id" element={<OrderDetail />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/admin" element={<AdminLayout />} />
+                <Route path="/activity" element={<LiveActivity />} />
               </Routes>
             </main>
+
             <Footer />
+
           </div>
+
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>
