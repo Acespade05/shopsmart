@@ -8,7 +8,11 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT c.id, c.name, c.slug, c.description, c.image_url,
-             COUNT(p.id) FILTER (WHERE p.is_active = true) AS product_count
+             COUNT(p.id) FILTER (WHERE p.is_active = true) AS product_count,
+             COALESCE(
+               ARRAY_AGG(DISTINCT p.subcategory) FILTER (WHERE p.is_active = true AND p.subcategory IS NOT NULL),
+               '{}'
+             ) AS subcategories
       FROM categories c
       LEFT JOIN products p ON p.category_id = c.id
       GROUP BY c.id

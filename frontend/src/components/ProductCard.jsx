@@ -3,11 +3,7 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-
-// Shown when a product image fails to load.
-export function placeholder(name) {
-  return `https://placehold.co/500x500/14120f/e3a857?text=${encodeURIComponent(name)}&font=roboto`;
-}
+import { fallbackTo } from '../utils/images';
 
 export default function ProductCard({ product }) {
   const { cart, addItem, updateItem } = useCart();
@@ -68,10 +64,7 @@ export default function ProductCard({ product }) {
           className={`w-full h-full object-contain p-4 transition-all duration-300 group-hover:scale-105 ${
             product.images?.length > 1 ? 'group-hover:opacity-0' : ''
           }`}
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = placeholder(product.name);
-          }}
+          onError={fallbackTo(product.name)}
         />
         {product.images?.length > 1 && (
           <img

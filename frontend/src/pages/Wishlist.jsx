@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { fallbackTo } from '../utils/images';
 
 export default function Wishlist() {
   const [items, setItems] = useState([]);
@@ -61,10 +62,7 @@ export default function Wishlist() {
                     src={item.images?.[0]}
                     alt={item.name}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = `https://placehold.co/500x500/0B6E4F/FAFAF7?text=${encodeURIComponent(item.name)}&font=roboto`;
-                    }}
+                    onError={fallbackTo(item.name)}
                   />
                 </div>
                 <p className="font-medium text-sm mb-1">{item.name}</p>

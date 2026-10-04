@@ -400,7 +400,7 @@ def books():
             # so the frontend's placeholder fallback kicks in.
             'images': [f'https://covers.openlibrary.org/b/isbn/{isbn}-L.jpg?default=false'],
             'rating': rating,
-            'review_count': h(isbn, 300, 9000),
+            'review_count': h(isbn, 150, 2600),
             'sku': f'BK-{isbn}',
             'tags': ['books', genre.lower()],
             'specs': {'Author': author, 'Publisher': pub, 'Genre': genre, 'Language': 'English', 'ISBN-13': isbn},

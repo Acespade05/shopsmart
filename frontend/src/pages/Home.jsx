@@ -1,80 +1,84 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
-import ProductCard from '../components/ProductCard';
+import ProductRow from '../components/ProductRow';
+import OfferCarousel from '../components/OfferCarousel';
+import { sortCategories, shortName, CATEGORY_LABEL } from '../utils/categories';
 
 // Lifestyle photo (Pexels) and tagline for each category. A category added later
 // without an entry here still appears, using a product photo from the API.
 const CATEGORY_STYLE = {
   electronics: {
-    label: 'Electronics',
     tags: 'Audio · Devices · Gadgets',
     img: 'https://images.pexels.com/photos/14741306/pexels-photo-14741306.jpeg?auto=compress&cs=tinysrgb&w=1200',
   },
   clothing: {
-    label: 'Fashion',
     tags: 'Denim · Basics · Outerwear',
     img: 'https://images.pexels.com/photos/8581058/pexels-photo-8581058.jpeg?auto=compress&cs=tinysrgb&w=1200',
   },
   accessories: {
-    label: 'Accessories',
     tags: 'Watches · Bags · Jewellery',
     img: 'https://images.pexels.com/photos/380782/pexels-photo-380782.jpeg?auto=compress&cs=tinysrgb&w=1200',
   },
   'home-kitchen': {
-    label: 'Home',
     tags: 'Ceramics · Lighting · Textiles',
     img: 'https://images.pexels.com/photos/27180805/pexels-photo-27180805.jpeg?auto=compress&cs=tinysrgb&w=1200',
   },
   beauty: {
-    label: 'Beauty',
     tags: 'Makeup · Fragrance · Body care',
     img: 'https://images.pexels.com/photos/2566853/pexels-photo-2566853.jpeg?auto=compress&cs=tinysrgb&w=1200',
   },
   groceries: {
-    label: 'Grocery',
     tags: 'Fresh · Pantry · Beverages',
     img: 'https://images.pexels.com/photos/9705821/pexels-photo-9705821.jpeg?auto=compress&cs=tinysrgb&w=1200',
   },
   sports: {
-    label: 'Sports',
     tags: 'Footwear · Fitness · Outdoor',
     img: 'https://images.pexels.com/photos/16918373/pexels-photo-16918373.jpeg?auto=compress&cs=tinysrgb&w=1200',
   },
   books: {
-    label: 'Books',
     tags: 'Fiction · Non-fiction · Journals',
     img: 'https://images.pexels.com/photos/12596070/pexels-photo-12596070.jpeg?auto=compress&cs=tinysrgb&w=1200',
   },
 };
-const CATEGORY_ORDER = ['electronics', 'clothing', 'accessories', 'home-kitchen', 'beauty', 'groceries', 'sports', 'books'];
+
+// Biggest discounts first, but at most `perCategory` from any one category,
+// so the deals row isn't all books.
+function mixCategories(products, perCategory, total) {
+  const seen = {};
+  return products
+    .filter((p) => {
+      const key = p.category_slug || p.subcategory || 'other';
+      seen[key] = (seen[key] || 0) + 1;
+      return seen[key] <= perCategory;
+    })
+    .slice(0, total);
+}
 
 export default function Home() {
   const [categories, setCategories] = useState([]);
-  const [featured, setFeatured] = useState([]);
+  const [deals, setDeals] = useState([]);
+  const [bestsellers, setBestsellers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get('/categories'),
-      api.get('/products?sort=rating&limit=8'),
+      api.get('/products?sort=discount&limit=60'),
+      api.get('/products?sort=popular&limit=12'),
     ])
-      .then(([catRes, prodRes]) => {
+      .then(([catRes, dealsRes, bestRes]) => {
         setCategories(catRes.data.categories);
-        setFeatured(prodRes.data.products);
+        setDeals(mixCategories(dealsRes.data.products, 2, 12));
+        setBestsellers(bestRes.data.products);
       })
       .finally(() => setLoading(false));
   }, []);
 
-  const rank = (slug) => {
-    const i = CATEGORY_ORDER.indexOf(slug);
-    return i === -1 ? CATEGORY_ORDER.length : i;
-  };
-  const homeCategories = [...categories]
-    .sort((a, b) => rank(a.slug) - rank(b.slug))
+  const homeCategories = sortCategories(categories)
     .map((c, i) => ({
       slug: c.slug,
-      name: CATEGORY_STYLE[c.slug]?.label || c.name, // short name: the home page sets it in very large type
+      name: shortName(c), // short name: the home page sets it in very large type
       num: String(i + 1).padStart(2, '0'),
       tags: CATEGORY_STYLE[c.slug]?.tags || c.description || '',
       img: CATEGORY_STYLE[c.slug]?.img || c.image_url,
@@ -195,7 +199,7 @@ export default function Home() {
         <div className="flex whitespace-nowrap ss-marquee-track py-3">
           {[...Array(2)].map((_, i) => (
             <div key={i} className="flex shrink-0">
-              {['Electronics', 'Apparel', 'Home', 'Books', 'Sports'].map((label) => (
+              {Object.values(CATEGORY_LABEL).map((label) => (
                 <span
                   key={`${i}-${label}`}
                   className="mx-6 font-mono text-[11px] tracking-[0.2em] uppercase text-[#f3eee3]/35"
@@ -209,8 +213,18 @@ export default function Home() {
       </div>
 
       {/* =========================
-          CATEGORIES
+          OFFERS + TODAY'S DEALS
       ========================== */}
+      <OfferCarousel />
+
+      <ProductRow
+        eyebrow="Limited time"
+        title="Today's deals"
+        viewAllTo="/products?sort=discount"
+        products={deals}
+        loading={loading}
+      />
+
       {/* =========================
     CINEMATIC CATEGORY SHOWCASE
 ========================== */}
@@ -299,37 +313,15 @@ export default function Home() {
   })}
 </section>
       {/* =========================
-          TOP RATED PRODUCTS
+          BESTSELLERS
       ========================== */}
-      <section className="max-w-6xl mx-auto px-6 pb-24">
-        <div className="flex items-baseline justify-between mb-8">
-          <div>
-            <p className="font-mono text-[10px] tracking-[0.25em] text-[#e3a857] uppercase mb-2">
-              Curated for you
-            </p>
-            <h2 className="text-2xl md:text-3xl font-display font-semibold text-[#f3eee3]">
-              Top rated
-            </h2>
-          </div>
-
-          <Link
-            to="/products?sort=rating"
-            className="text-sm text-[#e3a857] hover:text-[#f0c07f] transition-colors"
-          >
-            View all →
-          </Link>
-        </div>
-
-        {loading ? (
-          <p className="text-[#f3eee3]/40 text-sm font-mono">Loading products…</p>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-            {featured.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
-      </section>
+      <ProductRow
+        eyebrow="Most loved"
+        title="Bestsellers"
+        viewAllTo="/products?sort=popular"
+        products={bestsellers}
+        loading={loading}
+      />
 
       {/* =========================
           CTA SECTION
@@ -353,7 +345,7 @@ export default function Home() {
           </h2>
 
           <p className="text-[#f3eee3]/45 max-w-md mx-auto text-sm leading-relaxed mb-8">
-            Explore a curated collection of products across electronics, apparel, home, books, and sports.
+            Electronics, fashion, home, beauty, groceries, sports, books and more, all in one place.
           </p>
 
           <Link

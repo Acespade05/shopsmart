@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import ProductCard, { placeholder } from '../components/ProductCard';
+import ProductCard from '../components/ProductCard';
+import { fallbackTo, placeholder } from '../utils/images';
 
 export default function ProductDetail() {
   const { slug } = useParams();
@@ -60,10 +61,7 @@ export default function ProductDetail() {
               src={images[activeImage] || images[0]}
               alt={product.name}
               className="w-full h-full object-contain p-6"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = placeholder(product.name);
-              }}
+              onError={fallbackTo(product.name)}
             />
           </div>
           {images.length > 1 && (

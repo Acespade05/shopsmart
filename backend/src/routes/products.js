@@ -60,7 +60,8 @@ router.get('/', async (req, res) => {
 
     const query = `
       SELECT id, name, slug, price, original_price, stock, images, rating, review_count,
-             brand, subcategory
+             brand, subcategory,
+             (SELECT c.slug FROM categories c WHERE c.id = products.category_id) AS category_slug
       FROM products
       WHERE ${conditions.join(' AND ')}
       ORDER BY ${orderBy}

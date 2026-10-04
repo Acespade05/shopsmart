@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import ShopSmartBackground from './components/ShopSmartBackground';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -18,6 +19,11 @@ import OrderDetail from './pages/OrderDetail';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
 import LiveActivity from './pages/LiveActivity';
+
+import DarkPage from './components/DarkPage';
+
+// Admin pages (and their chart library) load only when /admin is opened.
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 
 function App() {
   return (
@@ -48,6 +54,16 @@ function App() {
                 <Route path="/search" element={<Search />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/activity" element={<LiveActivity />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <DarkPage>
+                      <Suspense fallback={<p className="max-w-6xl mx-auto px-6 py-10 text-sm text-[#f3eee3]/40">Loading…</p>}>
+                        <AdminLayout />
+                      </Suspense>
+                    </DarkPage>
+                  }
+                />
               </Routes>
             </main>
 

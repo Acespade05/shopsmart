@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import api from '../services/api';
 
@@ -52,14 +52,16 @@ export default function Category() {
   const [apiCategory, setApiCategory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [sub, setSub] = useState('');
+  // Selected subcategory lives in the URL (?sub=Laptops) so header-menu links can open it directly.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sub = searchParams.get('sub') || '';
+  const setSub = (name) => setSearchParams(name ? { sub: name } : {}, { replace: true });
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setNotFound(false);
     setApiCategory(null);
-    setSub('');
     api
       .get(`/categories/${slug}`)
       .then((res) => {
