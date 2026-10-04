@@ -3,6 +3,52 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 
+// Lifestyle photo (Pexels) and tagline for each category. A category added later
+// without an entry here still appears, using a product photo from the API.
+const CATEGORY_STYLE = {
+  electronics: {
+    label: 'Electronics',
+    tags: 'Audio · Devices · Gadgets',
+    img: 'https://images.pexels.com/photos/14741306/pexels-photo-14741306.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+  clothing: {
+    label: 'Fashion',
+    tags: 'Denim · Basics · Outerwear',
+    img: 'https://images.pexels.com/photos/8581058/pexels-photo-8581058.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+  accessories: {
+    label: 'Accessories',
+    tags: 'Watches · Bags · Jewellery',
+    img: 'https://images.pexels.com/photos/380782/pexels-photo-380782.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+  'home-kitchen': {
+    label: 'Home',
+    tags: 'Ceramics · Lighting · Textiles',
+    img: 'https://images.pexels.com/photos/27180805/pexels-photo-27180805.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+  beauty: {
+    label: 'Beauty',
+    tags: 'Makeup · Fragrance · Body care',
+    img: 'https://images.pexels.com/photos/2566853/pexels-photo-2566853.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+  groceries: {
+    label: 'Grocery',
+    tags: 'Fresh · Pantry · Beverages',
+    img: 'https://images.pexels.com/photos/9705821/pexels-photo-9705821.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+  sports: {
+    label: 'Sports',
+    tags: 'Footwear · Fitness · Outdoor',
+    img: 'https://images.pexels.com/photos/16918373/pexels-photo-16918373.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+  books: {
+    label: 'Books',
+    tags: 'Fiction · Non-fiction · Journals',
+    img: 'https://images.pexels.com/photos/12596070/pexels-photo-12596070.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+};
+const CATEGORY_ORDER = ['electronics', 'clothing', 'accessories', 'home-kitchen', 'beauty', 'groceries', 'sports', 'books'];
+
 export default function Home() {
   const [categories, setCategories] = useState([]);
   const [featured, setFeatured] = useState([]);
@@ -19,6 +65,22 @@ export default function Home() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const rank = (slug) => {
+    const i = CATEGORY_ORDER.indexOf(slug);
+    return i === -1 ? CATEGORY_ORDER.length : i;
+  };
+  const homeCategories = [...categories]
+    .sort((a, b) => rank(a.slug) - rank(b.slug))
+    .map((c, i) => ({
+      slug: c.slug,
+      name: CATEGORY_STYLE[c.slug]?.label || c.name, // short name: the home page sets it in very large type
+      num: String(i + 1).padStart(2, '0'),
+      tags: CATEGORY_STYLE[c.slug]?.tags || c.description || '',
+      img: CATEGORY_STYLE[c.slug]?.img || c.image_url,
+      align: i % 2 === 0 ? 'left' : 'right',
+    }));
+  const totalLabel = String(homeCategories.length).padStart(2, '0');
 
   return (
     <div className="bg-[#0b0a08] text-[#f3eee3] min-h-screen">
@@ -79,7 +141,7 @@ export default function Home() {
         {/* Main hero content */}
         <div className="relative z-10 text-center select-none">
           <p className="font-mono text-[10px] tracking-[0.35em] text-[#e3a857]/70 uppercase mb-6">
-            Five categories · one catalog
+            {homeCategories.length || 'Every'} categories · one catalog
           </p>
 
           {/* Interactive ShopSmart text */}
@@ -166,48 +228,7 @@ export default function Home() {
     </h2>
   </div>
 
-  {[
-    {
-      num: '01',
-      slug: 'electronics',
-      name: 'Electronics',
-      tags: 'Audio · Devices · Gadgets',
-      img: 'https://images.pexels.com/photos/14741306/pexels-photo-14741306.jpeg?auto=compress&cs=tinysrgb&w=1200',
-      align: 'left',
-    },
-    {
-      num: '02',
-      slug: 'clothing',
-      name: 'Fashion',
-      tags: 'Denim · Basics · Outerwear',
-      img: 'https://images.pexels.com/photos/8581058/pexels-photo-8581058.jpeg?auto=compress&cs=tinysrgb&w=1200',
-      align: 'right',
-    },
-    {
-      num: '03',
-      slug: 'home-kitchen',
-      name: 'Home',
-      tags: 'Ceramics · Lighting · Textiles',
-      img: 'https://images.pexels.com/photos/27180805/pexels-photo-27180805.jpeg?auto=compress&cs=tinysrgb&w=1200',
-      align: 'left',
-    },
-    {
-      num: '04',
-      slug: 'books',
-      name: 'Books',
-      tags: 'Fiction · Non-fiction · Journals',
-      img: 'https://images.pexels.com/photos/12596070/pexels-photo-12596070.jpeg?auto=compress&cs=tinysrgb&w=1200',
-      align: 'right',
-    },
-    {
-      num: '05',
-      slug: 'sports',
-      name: 'Sports',
-      tags: 'Footwear · Fitness · Outdoor',
-      img: 'https://images.pexels.com/photos/16918373/pexels-photo-16918373.jpeg?auto=compress&cs=tinysrgb&w=1200',
-      align: 'left',
-    },
-  ].map((cat) => {
+  {homeCategories.map((cat) => {
     const isLeft = cat.align === 'left';
     return (
       <Link
@@ -241,7 +262,7 @@ export default function Home() {
           }`}
         >
           <p className="font-mono text-[10px] tracking-[0.3em] text-[#f3eee3]/35 mb-4">
-            {cat.num} / 05
+            {cat.num} / {totalLabel}
           </p>
           <h3
             className="font-display text-6xl md:text-[8rem] font-semibold leading-none
