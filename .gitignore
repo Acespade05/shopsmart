@@ -5,3 +5,6 @@ frontend/.env
 .DS_Store
 *.pem
 cookies.txt
+
+# Runtime logs (never commit)
+logs/

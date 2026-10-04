@@ -1,0 +1,80 @@
+# Local testing stack — use this on your laptop, NOT on the AWS VM.
+#
+#   docker compose -f docker-compose.local.yml up -d --build
+#   docker compose -f docker-compose.local.yml exec app npm run migrate
+#   docker compose -f docker-compose.local.yml exec app npm run seed
+#   open http://localhost
+#
+# Differences from docker-compose.yml (production):
+#   - nginx serves plain HTTP on localhost (no Let's Encrypt certificates needed)
+#   - the traffic-generator bot is NOT started (it would hit the live site)
+#   - separate project name + database volume, so local data never mixes with prod
+#   - Postgres exposed on localhost:5433 for inspecting data with a DB client
+
+name: shopsmart-local
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shopuser
+      POSTGRES_PASSWORD: localpassword
+      POSTGRES_DB: shopsmart
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopuser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: shopuser
+      DB_PASSWORD: localpassword
+      DB_NAME: shopsmart
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: local_dev_only_secret_not_for_production
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - app
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+      - frontend
+
+volumes:
+  postgres_data_local:
