@@ -1,19 +1,19 @@
 // ShopSmart seed script
-// Populates 5 categories, 50 products, admin user, discount codes,
-// synthetic bot customer accounts, and progressive discount tiers.
+// Populates the product catalog (backend/seeds/catalog.json), admin user,
+// discount codes, synthetic bot customer accounts, and progressive discount tiers.
+//
+// Safe to run more than once: every insert is an upsert keyed on a stable
+// value (product slug, category slug, email, discount code), so re-running
+// never creates duplicates.
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const pool = require('../src/config/database');
+const catalog = require('./catalog.json');
 
-const categories = [
-  { name: 'Electronics', slug: 'electronics', description: 'Phones, laptops, gadgets and accessories.' },
-  { name: 'Clothing', slug: 'clothing', description: 'Apparel for men, women, and kids.' },
-  { name: 'Home & Kitchen', slug: 'home-kitchen', description: 'Everything for your home and kitchen.' },
-  { name: 'Books', slug: 'books', description: 'Fiction, non-fiction, and academic books.' },
-  { name: 'Sports', slug: 'sports', description: 'Sports gear, fitness equipment, and outdoor kit.' },
-];
-
-const productNamesByCategory = {
+// Products from the original (pre-catalog) seed. They are deactivated — not
+// deleted — when the new catalog is applied, so past orders that reference
+// them stay intact. Products added by hand through the admin panel are left alone.
+const LEGACY_PRODUCT_NAMES_BY_CATEGORY = {
   electronics: [
     'Wireless Bluetooth Earbuds', 'Smartphone 128GB', '27-inch 4K Monitor', 'Mechanical Keyboard',
     'Wireless Mouse', 'Portable Power Bank 20000mAh', 'Smart Watch Series 5', 'Noise Cancelling Headphones',
@@ -41,31 +41,6 @@ const productNamesByCategory = {
   ],
 };
 
-function slugify(text) {
-  return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
-function randomPrice(min, max) {
-  return (Math.random() * (max - min) + min).toFixed(2);
-}
-
-function placeholderImage(productName, categorySlug) {
-  const colorByCategory = {
-    electronics: '0B6E4F/FAFAF7',
-    clothing: 'C08A2E/FAFAF7',
-    'home-kitchen': 'E8604C/FAFAF7',
-    books: '171512/FAFAF7',
-    sports: '08543C/FAFAF7',
-  };
-  const colors = colorByCategory[categorySlug] || '0B6E4F/FAFAF7';
-  const text = encodeURIComponent(productName);
-  return `https://placehold.co/500x500/${colors}?text=${text}&font=roboto`;
-}
-
-function realProductImage(productName, categorySlug) {
-  return placeholderImage(productName, categorySlug);
-}
-
 async function seed() {
   const client = await pool.connect();
   try {
@@ -73,53 +48,57 @@ async function seed() {
 
     // --- Categories ---
     const categoryIds = {};
-    for (const cat of categories) {
+    for (const cat of catalog.categories) {
+      const cover = catalog.products.find((p) => p.category === cat.slug)?.images?.[0] || null;
       const res = await client.query(
-        `INSERT INTO categories (name, slug, description)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-         RETURNING id, slug`,
-        [cat.name, cat.slug, cat.description]
+        `INSERT INTO categories (name, slug, description, image_url)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (slug) DO UPDATE
+           SET name = EXCLUDED.name, description = EXCLUDED.description, image_url = EXCLUDED.image_url
+         RETURNING id`,
+        [cat.name, cat.slug, cat.description, cover]
       );
-      categoryIds[res.rows[0].slug] = res.rows[0].id;
+      categoryIds[cat.slug] = res.rows[0].id;
     }
-    console.log(`Seeded ${categories.length} categories`);
+    console.log(`Seeded ${catalog.categories.length} categories`);
 
     // --- Products ---
-    let productCount = 0;
-    for (const [slug, names] of Object.entries(productNamesByCategory)) {
-      const categoryId = categoryIds[slug];
-      for (const name of names) {
-        const productSlug = slugify(name) + '-' + Math.random().toString(36).slice(2, 6);
-        const price = randomPrice(299, 24999);
-        const hasDiscount = Math.random() > 0.5;
-        const originalPrice = hasDiscount ? (parseFloat(price) * 1.2).toFixed(2) : null;
-        const stock = Math.floor(Math.random() * 200) + 5;
-        const rating = (Math.random() * 2 + 3).toFixed(2);
-        const reviewCount = Math.floor(Math.random() * 300);
-
-        await client.query(
-          `INSERT INTO products
-             (category_id, name, slug, description, price, original_price, stock, images, rating, review_count, is_active)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)
-           ON CONFLICT (slug) DO NOTHING`,
-          [
-            categoryId,
-            name,
-            productSlug,
-            `${name} — quality product from our ${slug.replace('-', ' & ')} collection.`,
-            price,
-            originalPrice,
-            stock,
-            [realProductImage(name, slug)],
-            rating,
-            reviewCount,
-          ]
-        );
-        productCount++;
-      }
+    // On re-run, descriptive fields are refreshed but stock is NOT reset,
+    // so stock changes from real orders are preserved.
+    for (const p of catalog.products) {
+      await client.query(
+        `INSERT INTO products
+           (category_id, name, slug, description, price, original_price, stock, images,
+            rating, review_count, is_active,
+            brand, sku, subcategory, tags, specs, sizes, warranty, return_policy, shipping_info)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true,
+                 $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         ON CONFLICT (slug) DO UPDATE SET
+           category_id = EXCLUDED.category_id, name = EXCLUDED.name, description = EXCLUDED.description,
+           price = EXCLUDED.price, original_price = EXCLUDED.original_price, images = EXCLUDED.images,
+           rating = EXCLUDED.rating, review_count = EXCLUDED.review_count, is_active = true,
+           brand = EXCLUDED.brand, sku = EXCLUDED.sku, subcategory = EXCLUDED.subcategory,
+           tags = EXCLUDED.tags, specs = EXCLUDED.specs, sizes = EXCLUDED.sizes,
+           warranty = EXCLUDED.warranty, return_policy = EXCLUDED.return_policy,
+           shipping_info = EXCLUDED.shipping_info, updated_at = now()`,
+        [
+          categoryIds[p.category], p.name, p.slug, p.description, p.price, p.original_price,
+          p.stock, p.images, p.rating, p.review_count,
+          p.brand, p.sku, p.subcategory, p.tags, JSON.stringify(p.specs), p.sizes,
+          p.warranty, p.return_policy, p.shipping_info,
+        ]
+      );
     }
-    console.log(`Seeded ${productCount} products`);
+    console.log(`Seeded ${catalog.products.length} products`);
+
+    // Retire the old placeholder products (and any duplicates the old seed created).
+    const legacyNames = Object.values(LEGACY_PRODUCT_NAMES_BY_CATEGORY).flat();
+    const retired = await client.query(
+      `UPDATE products SET is_active = false, updated_at = now()
+       WHERE is_active = true AND name = ANY($1) AND NOT (slug = ANY($2))`,
+      [legacyNames, catalog.products.map((p) => p.slug)]
+    );
+    if (retired.rowCount > 0) console.log(`Retired ${retired.rowCount} old placeholder products (kept for order history)`);
 
     // --- Admin user ---
     const adminPasswordHash = await bcrypt.hash('admin123', 10);

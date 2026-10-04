@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const {
-      category, minPrice, maxPrice, minRating, inStock,
+      category, minPrice, maxPrice, minRating, inStock, brand, subcategory,
       sort = 'newest', page = 1, limit = 20,
     } = req.query;
 
@@ -33,12 +33,22 @@ router.get('/', async (req, res) => {
     if (inStock === 'true') {
       conditions.push('stock > 0');
     }
+    if (brand) {
+      values.push(brand);
+      conditions.push(`brand = $${values.length}`);
+    }
+    if (subcategory) {
+      values.push(subcategory);
+      conditions.push(`subcategory = $${values.length}`);
+    }
 
     const sortMap = {
       newest: 'created_at DESC',
       price_asc: 'price ASC',
       price_desc: 'price DESC',
       rating: 'rating DESC',
+      popular: 'review_count DESC',
+      discount: 'COALESCE(1 - price / NULLIF(original_price, 0), 0) DESC',
     };
     const orderBy = sortMap[sort] || sortMap.newest;
 
@@ -49,7 +59,8 @@ router.get('/', async (req, res) => {
     values.push(limitNum, offset);
 
     const query = `
-      SELECT id, name, slug, price, original_price, stock, images, rating, review_count
+      SELECT id, name, slug, price, original_price, stock, images, rating, review_count,
+             brand, subcategory
       FROM products
       WHERE ${conditions.join(' AND ')}
       ORDER BY ${orderBy}
@@ -133,7 +144,7 @@ router.get('/:slug', async (req, res) => {
     );
 
     const relatedResult = await pool.query(
-      `SELECT id, name, slug, price, images, rating
+      `SELECT id, name, slug, price, original_price, stock, images, rating, review_count, brand
        FROM products
        WHERE category_id = $1 AND id != $2 AND is_active = true
        ORDER BY rating DESC

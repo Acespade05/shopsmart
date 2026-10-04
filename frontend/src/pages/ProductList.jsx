@@ -1,70 +1,59 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
-import { products as allProducts } from '../data/products';
+import api from '../services/api';
+
+const PAGE_SIZE = 24;
 
 export default function ProductList() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const sort = searchParams.get('sort') || 'newest';
+  const sort = searchParams.get('sort') || 'popular';
   const minPrice = searchParams.get('minPrice') || '';
   const maxPrice = searchParams.get('maxPrice') || '';
   const inStock = searchParams.get('inStock') === 'true';
+  const category = searchParams.get('category') || '';
 
-  const products = useMemo(() => {
-    let filtered = [...allProducts];
+  const [products, setProducts] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
 
-    // -------------------------
-    // PRICE FILTER
-    // -------------------------
-    if (minPrice) {
-      filtered = filtered.filter(
-        (product) => Number(product.price) >= Number(minPrice)
-      );
-    }
+  useEffect(() => {
+    api.get('/categories').then((res) => setCategories(res.data.categories)).catch(() => {});
+  }, []);
 
-    if (maxPrice) {
-      filtered = filtered.filter(
-        (product) => Number(product.price) <= Number(maxPrice)
-      );
-    }
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const params = { sort, page, limit: PAGE_SIZE };
+    if (minPrice) params.minPrice = minPrice;
+    if (maxPrice) params.maxPrice = maxPrice;
+    if (inStock) params.inStock = 'true';
+    if (category) params.category = category;
 
-    // -------------------------
-    // STOCK FILTER
-    // -------------------------
-    if (inStock) {
-      filtered = filtered.filter(
-        (product) => Number(product.stock) > 0
-      );
-    }
-
-    // -------------------------
-    // SORT
-    // -------------------------
-    if (sort === 'price_asc') {
-      filtered.sort(
-        (a, b) => Number(a.price) - Number(b.price)
-      );
-    }
-
-    if (sort === 'price_desc') {
-      filtered.sort(
-        (a, b) => Number(b.price) - Number(a.price)
-      );
-    }
-
-    if (sort === 'rating') {
-      filtered.sort(
-        (a, b) => Number(b.rating) - Number(a.rating)
-      );
-    }
-
-    // Keep newest/default order otherwise
-
-    return filtered;
-  }, [sort, minPrice, maxPrice, inStock]);
+    api
+      .get('/products', { params })
+      .then((res) => {
+        if (cancelled) return;
+        setTotal(res.data.pagination.total);
+        setProducts((prev) => (page === 1 ? res.data.products : [...prev, ...res.data.products]));
+      })
+      .catch(() => {
+        if (!cancelled && page === 1) setProducts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sort, minPrice, maxPrice, inStock, category, page]);
 
   function updateParam(key, value) {
+    setPage(1); // any filter change starts again from page 1
+
     const next = new URLSearchParams(searchParams);
 
     if (value) {
@@ -105,7 +94,7 @@ export default function ProductList() {
           </div>
 
           <span className="hidden md:block font-mono text-[10px] tracking-[0.2em] text-[#f3eee3]/30">
-            {String(products.length).padStart(2, '0')} ITEMS
+            {String(total).padStart(2, '0')} ITEMS
           </span>
 
         </div>
@@ -127,6 +116,30 @@ export default function ProductList() {
           ========================== */}
 
           <aside className="w-52 shrink-0 space-y-10">
+
+            {/* Category */}
+            <div>
+              <p className="font-mono text-[10px] tracking-[0.25em] uppercase text-[#e3a857] mb-4">
+                Category
+              </p>
+
+              <div className="space-y-2">
+                {[{ slug: '', name: 'All products' }, ...categories].map((c) => (
+                  <button
+                    key={c.slug || 'all'}
+                    onClick={() => updateParam('category', c.slug)}
+                    className={`block w-full text-left text-xs py-1 transition-colors ${
+                      category === c.slug ? 'text-[#e3a857]' : 'text-[#f3eee3]/50 hover:text-[#f3eee3]'
+                    }`}
+                  >
+                    {c.name}
+                    {c.product_count !== undefined && (
+                      <span className="ml-2 text-[#f3eee3]/25">{c.product_count}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Sort */}
             <div>
@@ -151,8 +164,16 @@ export default function ProductList() {
                   focus:border-[#e3a857]/60
                 "
               >
+                <option value="popular" className="bg-[#0b0a08]">
+                  Popularity
+                </option>
+
                 <option value="newest" className="bg-[#0b0a08]">
                   Newest
+                </option>
+
+                <option value="discount" className="bg-[#0b0a08]">
+                  Biggest Discount
                 </option>
 
                 <option value="price_asc" className="bg-[#0b0a08]">
@@ -250,7 +271,7 @@ export default function ProductList() {
 
           <div className="flex-1">
 
-            {products.length === 0 ? (
+            {!loading && products.length === 0 ? (
 
               <div className="py-24 text-center">
 
@@ -289,6 +310,22 @@ export default function ProductList() {
 
               </div>
 
+            )}
+
+            {products.length < total && (
+              <div className="mt-16 text-center">
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={loading}
+                  className="border border-[#f3eee3]/20 px-7 py-3 text-xs tracking-[0.2em] uppercase rounded-sm hover:bg-[#f3eee3] hover:text-[#0b0a08] transition-all disabled:opacity-40"
+                >
+                  {loading ? 'Loading…' : `Show more (${total - products.length} left)`}
+                </button>
+              </div>
+            )}
+
+            {loading && products.length === 0 && (
+              <p className="py-24 text-center text-xs text-[#f3eee3]/30">Loading products…</p>
             )}
 
           </div>

@@ -1,51 +1,104 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
-import { products } from '../data/products';
+import api from '../services/api';
+
+const CATEGORY_INFO = {
+  electronics: {
+    number: '01',
+    description: 'Smartphones, laptops, tablets, audio and smart devices from Apple, Samsung, Dell and more.',
+    tags: 'Phones · Laptops · Audio',
+  },
+  clothing: {
+    number: '02',
+    description: 'Shirts, dresses and footwear for men and women, from everyday basics to party wear.',
+    tags: 'Shirts · Dresses · Footwear',
+  },
+  accessories: {
+    number: '03',
+    description: 'Watches, handbags, jewellery and sunglasses to finish every look.',
+    tags: 'Watches · Bags · Jewellery',
+  },
+  'home-kitchen': {
+    number: '04',
+    description: 'Kitchen tools, appliances, furniture and décor that make a home work.',
+    tags: 'Kitchen · Furniture · Décor',
+  },
+  beauty: {
+    number: '05',
+    description: 'Makeup, fragrances and bath & body care from brands you know.',
+    tags: 'Makeup · Fragrance · Body care',
+  },
+  groceries: {
+    number: '06',
+    description: 'Fresh produce, dairy, pantry staples, beverages and pet food.',
+    tags: 'Fresh · Pantry · Beverages',
+  },
+  sports: {
+    number: '07',
+    description: 'Gear for cricket, football, racket sports and more.',
+    tags: 'Cricket · Football · Racket sports',
+  },
+  books: {
+    number: '08',
+    description: 'Bestselling fiction, self-help, business and programming books.',
+    tags: 'Fiction · Self-help · Business',
+  },
+};
 
 export default function Category() {
   const { slug } = useParams();
+  const [allProducts, setAllProducts] = useState([]);
+  const [apiCategory, setApiCategory] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [sub, setSub] = useState('');
 
-  const categoryProducts = products.filter((product) => product.category === slug);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    setApiCategory(null);
+    setSub('');
+    api
+      .get(`/categories/${slug}`)
+      .then((res) => {
+        if (cancelled) return;
+        setApiCategory(res.data.category);
+        setAllProducts(res.data.products);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAllProducts([]);
+        setNotFound(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
-  const categoryInfo = {
-    electronics: {
-      name: 'Electronics',
-      number: '01',
-      description: 'Smart devices, accessories, and everyday technology for your setup.',
-      tags: 'Audio · Devices · Gadgets',
-    },
-    apparel: {
-      name: 'Apparel',
-      number: '02',
-      description: 'Everyday essentials, casual wear, and styles made for everyone.',
-      tags: 'Style · Everyday · Essentials',
-    },
-    'home-kitchen': {
-      name: 'Home & Kitchen',
-      number: '03',
-      description: 'Objects that make your home comfortable, functional, and beautiful.',
-      tags: 'Home · Kitchen · Living',
-    },
-    books: {
-      name: 'Books',
-      number: '04',
-      description: 'Stories, ideas, knowledge, and books worth keeping.',
-      tags: 'Stories · Ideas · Knowledge',
-    },
-    sports: {
-      name: 'Sports',
-      number: '05',
-      description: 'Gear and equipment to keep you active, moving, and playing.',
-      tags: 'Fitness · Training · Play',
-    },
-  };
+  // Subcategories present in this category, largest first.
+  const subcategories = useMemo(() => {
+    const counts = {};
+    allProducts.forEach((p) => {
+      if (p.subcategory) counts[p.subcategory] = (counts[p.subcategory] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name]) => name);
+  }, [allProducts]);
 
-  const category = categoryInfo[slug] || {
-    name: 'Category',
+  const categoryProducts = sub ? allProducts.filter((p) => p.subcategory === sub) : allProducts;
+
+  const info = CATEGORY_INFO[slug] || {
     number: '00',
-    description: 'Explore our collection.',
+    description: apiCategory?.description || 'Explore our collection.',
     tags: 'Shop · Explore · Discover',
   };
+  const category = { ...info, name: apiCategory?.name || (notFound ? 'Not found' : '') };
 
   return (
     <div className="min-h-screen bg-[#0b0a08] text-[#f3eee3]">
@@ -131,7 +184,27 @@ export default function Category() {
           </span>
         </div>
 
-        {categoryProducts.length === 0 ? (
+        {subcategories.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-12">
+            {['', ...subcategories].map((name) => (
+              <button
+                key={name || 'all'}
+                onClick={() => setSub(name)}
+                className={`px-4 py-2 text-[11px] tracking-[0.1em] rounded-sm border transition-colors ${
+                  sub === name
+                    ? 'border-[#e3a857] text-[#e3a857]'
+                    : 'border-[#f3eee3]/15 text-[#f3eee3]/50 hover:text-[#f3eee3] hover:border-[#f3eee3]/40'
+                }`}
+              >
+                {name || 'All'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <p className="py-32 text-center text-xs text-[#f3eee3]/30">Loading products…</p>
+        ) : categoryProducts.length === 0 ? (
           <div className="py-32 flex flex-col items-center text-center">
             <div className="w-12 h-12 mb-6 border border-dashed border-[#e3a857]/25 rounded-sm" />
             <p className="font-display text-3xl text-[#f3eee3]/30">Nothing here yet.</p>

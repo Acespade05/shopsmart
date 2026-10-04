@@ -177,8 +177,8 @@ export default function Home() {
     },
     {
       num: '02',
-      slug: 'apparel',
-      name: 'Apparel',
+      slug: 'clothing',
+      name: 'Fashion',
       tags: 'Denim · Basics · Outerwear',
       img: 'https://images.pexels.com/photos/8581058/pexels-photo-8581058.jpeg?auto=compress&cs=tinysrgb&w=1200',
       align: 'right',

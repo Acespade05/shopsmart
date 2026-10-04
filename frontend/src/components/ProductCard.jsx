@@ -4,6 +4,11 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
+// Shown when a product image fails to load.
+export function placeholder(name) {
+  return `https://placehold.co/500x500/14120f/e3a857?text=${encodeURIComponent(name)}&font=roboto`;
+}
+
 export default function ProductCard({ product }) {
   const { cart, addItem, updateItem } = useCart();
   const { user } = useAuth();
@@ -59,12 +64,27 @@ export default function ProductCard({ product }) {
         <img
           src={product.images?.[0]}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+          className={`w-full h-full object-contain p-4 transition-all duration-300 group-hover:scale-105 ${
+            product.images?.length > 1 ? 'group-hover:opacity-0' : ''
+          }`}
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = `https://placehold.co/500x500/0B6E4F/FAFAF7?text=${encodeURIComponent(product.name)}&font=roboto`;
+            e.target.src = placeholder(product.name);
           }}
         />
+        {product.images?.length > 1 && (
+          <img
+            src={product.images[1]}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-contain p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        )}
         {hasDiscount && (
           <span className="absolute top-3 left-3 bg-coral text-paper text-xs font-mono px-2 py-1 rounded-sm">
             -{discountPct}%
@@ -72,11 +92,16 @@ export default function ProductCard({ product }) {
         )}
       </div>
 
-      <h3 className="font-medium text-sm mb-1 line-clamp-1">{product.name}</h3>
+      {product.brand && (
+        <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-ink/40 mb-1 line-clamp-1">{product.brand}</p>
+      )}
+      <h3 className="font-medium text-sm mb-1 line-clamp-2 min-h-[2.5rem]" title={product.name}>{product.name}</h3>
 
       <div className="flex items-center gap-2 mb-2">
         <span className="text-gold text-xs">★ {parseFloat(product.rating).toFixed(1)}</span>
-        <span className="text-ink/40 text-xs">({product.review_count})</span>
+        {product.review_count != null && (
+          <span className="text-ink/40 text-xs">({Number(product.review_count).toLocaleString('en-IN')})</span>
+        )}
       </div>
 
       <div className="flex items-center justify-between">
