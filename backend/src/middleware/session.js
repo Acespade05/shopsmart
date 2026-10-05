@@ -3,7 +3,16 @@ const pool = require('../config/database');
 
 // Ensures every request has a session row, and keeps last_active fresh.
 // This is what the Doctor's business-metrics "active_sessions" query reads from.
+// Monitoring and logging endpoints are not shopper activity. Polling them
+// (AI-SRE, uptime checks, the bot's own log calls) must not create sessions,
+// otherwise watching the active-sessions metric would inflate it.
+const NOT_SHOPPING = [/^\/api\/metrics(\/|$)/, /^\/api\/bot-activity(\/|$)/, /^\/health$/];
+
 async function trackSession(req, res, next) {
+  if (NOT_SHOPPING.some((re) => re.test(req.path))) {
+    req.sessionId = req.cookies?.session_id || null;
+    return next();
+  }
   try {
     let sessionId = req.cookies?.session_id;
 
