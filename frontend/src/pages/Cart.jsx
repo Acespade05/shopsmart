@@ -5,8 +5,10 @@ import DiscountProgress from '../components/DiscountProgress';
 import CouponBox from '../components/CouponBox';
 import { fallbackTo } from '../utils/images';
 import { fmtINR } from '../utils/money';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function Cart() {
+  usePageTitle('Your cart');
   const { cart, subtotal, updateItem, removeItem } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();

@@ -8,6 +8,7 @@ import ImageGallery from '../components/ImageGallery';
 import Reviews from '../components/Reviews';
 import { rememberProduct, recentlyViewed } from '../utils/recent';
 import { estimateDelivery, formatDeliveryDate, isValidPincode, savedPincode, savePincode } from '../utils/delivery';
+import usePageTitle from '../hooks/usePageTitle';
 
 const inr = (n) => `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
@@ -64,6 +65,7 @@ export default function ProductDetail() {
   const { user } = useAuth();
 
   const [data, setData] = useState(null);
+  usePageTitle(data?.product?.name);
   const [notFound, setNotFound] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useState('');

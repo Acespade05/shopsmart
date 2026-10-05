@@ -1,74 +1,194 @@
-import { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { fmtINR } from '../../utils/money';
 
+const REFRESH_MS = 30000;
+
+// Store health at a glance. "Today" and "Live now" read the same /api/metrics
+// endpoints the AI-SRE collector uses, so the numbers here always match what
+// AI-SRE sees. Trends and charts are left to AI-SRE's own dashboards.
 export default function AdminOverview() {
-  const [dashboard, setDashboard] = useState(null);
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [m, setM] = useState(null);
+  const [attention, setAttention] = useState(null);
+  const [bots, setBots] = useState(null);
+  const [updated, setUpdated] = useState(null);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    Promise.all([api.get('/admin/dashboard'), api.get('/admin/analytics')])
-      .then(([dashRes, anaRes]) => {
-        setDashboard(dashRes.data);
-        setAnalytics(anaRes.data);
-      })
-      .catch((err) => console.error('Failed to load overview:', err))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    try {
+      const get = (url) => api.get(url).then((r) => r.data);
+      const [revenue, aov, conversion, sessions, checkouts, att, bot] = await Promise.all([
+        get('/metrics/revenue-today'),
+        get('/metrics/aov'),
+        get('/metrics/conversion-rate'),
+        get('/metrics/active-sessions'),
+        get('/metrics/active-checkouts'),
+        get('/admin/attention'),
+        get('/bot-activity/recent?limit=1').catch(() => null),
+      ]);
+      setM({ revenue, aov, conversion, sessions, checkouts });
+      setAttention(att);
+      setBots(bot?.activeBots ?? null);
+      setUpdated(new Date());
+      setError('');
+    } catch {
+      setError('Could not load store metrics. Retrying…');
+    }
   }, []);
 
-  if (loading) return <p className="text-ink/40 text-sm">Loading...</p>;
-  if (!dashboard) return <p className="text-coral text-sm">Failed to load dashboard data.</p>;
+  useEffect(() => {
+    load();
+    const t = setInterval(load, REFRESH_MS);
+    return () => clearInterval(t);
+  }, [load]);
 
-  const chartData = (analytics?.revenueByDay || []).map((d) => ({
-    day: new Date(d.day).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
-    revenue: parseFloat(d.revenue),
-  }));
+  if (!m || !attention) {
+    return <p className="text-sm text-[#f3eee3]/40">{error || 'Loading…'}</p>;
+  }
+
+  const attentionCount =
+    attention.waitingToShip.length + attention.outOfStock.length + attention.lowStock.length + attention.pendingReturns.length;
 
   return (
     <div className="space-y-10">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Revenue today" value={`₹${parseFloat(dashboard.revenueToday).toLocaleString('en-IN')}`} />
-        <StatCard label="Orders today" value={dashboard.ordersToday} />
-        <StatCard label="Active sessions" value={dashboard.activeSessions} />
-        <StatCard label="Top product" value={dashboard.topProducts[0]?.name || '—'} small />
-      </div>
-
-      <div>
-        <h2 className="font-display font-semibold text-lg mb-4">Revenue — last 30 days</h2>
-        <div className="h-64 border border-line rounded-sm p-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <XAxis dataKey="day" fontSize={11} stroke="#171512" opacity={0.4} />
-              <YAxis fontSize={11} stroke="#171512" opacity={0.4} />
-              <Tooltip formatter={(v) => `₹${v.toLocaleString('en-IN')}`} />
-              <Bar dataKey="revenue" fill="#0B6E4F" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {/* ---------- Today ---------- */}
+      <section>
+        <SectionTitle title="Today" note="Same definitions as /api/metrics (what AI-SRE collects)" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-[#f3eee3]/10 border border-[#f3eee3]/10 rounded-sm overflow-hidden">
+          <Stat label="Revenue today" value={`₹${fmtINR(m.revenue.revenue)}`} sub="Paid orders since midnight" />
+          <Stat label="Orders today" value={m.revenue.orderCount} sub="Paid" />
+          <Stat label="Avg. order value" value={`₹${fmtINR(m.aov.averageOrderValue)}`} sub="Last 7 days" />
+          <Stat
+            label="Conversion rate"
+            value={`${m.conversion.conversionRate}%`}
+            sub={`${m.conversion.orders} orders / ${m.conversion.sessions.toLocaleString('en-IN')} sessions · 7 days`}
+          />
         </div>
-      </div>
+      </section>
 
-      <div>
-        <h2 className="font-display font-semibold text-lg mb-4">Top products by revenue</h2>
-        <div className="border border-line rounded-sm divide-y divide-line">
-          {(analytics?.topProducts || []).slice(0, 8).map((p, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-3 text-sm">
-              <span>{p.name}</span>
-              <span className="text-ink/40 font-mono text-xs">{p.units_sold} sold</span>
-              <span className="font-mono">₹{parseFloat(p.revenue).toLocaleString('en-IN')}</span>
-            </div>
-          ))}
+      {/* ---------- Live ---------- */}
+      <section>
+        <SectionTitle title="Live now" note={updated ? `Updated ${updated.toLocaleTimeString('en-IN')} · refreshes every 30 s` : ''} />
+        <div className="grid grid-cols-3 gap-px bg-[#f3eee3]/10 border border-[#f3eee3]/10 rounded-sm overflow-hidden">
+          <Stat label="Active shoppers" value={m.sessions.activeSessions} sub="Sessions in last 5 min" live />
+          <Stat label="In checkout" value={m.checkouts.activeCheckouts} sub="Last 10 min" live />
+          <Stat
+            label="Traffic bots"
+            value={bots ?? '—'}
+            sub={bots === 0 ? 'None active — check the traffic generator' : 'Active in last 60 s'}
+            warn={bots === 0}
+            live
+          />
         </div>
-      </div>
+      </section>
+
+      {/* ---------- Needs attention ---------- */}
+      <section>
+        <SectionTitle title="Needs attention" note={attentionCount === 0 ? 'Nothing to do right now' : `${attentionCount} item${attentionCount > 1 ? 's' : ''}`} />
+        {attentionCount === 0 ? (
+          <div className="border border-[#f3eee3]/10 rounded-sm px-5 py-8 text-center text-sm text-[#f3eee3]/45">
+            All clear — no late orders, stock problems or pending returns.
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            <AttentionCard
+              title="Orders waiting to ship"
+              hint="Placed over 24 hours ago, not yet shipped"
+              items={attention.waitingToShip}
+              to="/admin?tab=orders"
+              action="Open orders"
+              render={(o) => (
+                <>
+                  <span className="font-mono">#{o.id}</span> · {o.customer_name}
+                  <span className="text-[#f3eee3]/35"> · {new Date(o.created_at).toLocaleDateString('en-IN')}</span>
+                </>
+              )}
+            />
+            <AttentionCard
+              title="Return requests"
+              hint="Waiting for approval"
+              items={attention.pendingReturns}
+              to="/admin?tab=orders#returns"
+              action="Review returns"
+              render={(r) => (
+                <>
+                  Order <span className="font-mono">#{r.order_id}</span> · {r.reason}
+                </>
+              )}
+            />
+            <AttentionCard
+              title="Out of stock"
+              hint="Shoppers can't buy these"
+              items={attention.outOfStock}
+              to="/admin?tab=inventory&filter=out"
+              action="Restock"
+              danger
+              render={(p) => p.name}
+            />
+            <AttentionCard
+              title="Low stock"
+              hint="Fewer than 10 left"
+              items={attention.lowStock}
+              to="/admin?tab=inventory&filter=low"
+              action="Manage stock"
+              render={(p) => (
+                <>
+                  {p.name} <span className="text-[#e3a857] font-mono">· {p.stock} left</span>
+                </>
+              )}
+            />
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-function StatCard({ label, value, small }) {
+function SectionTitle({ title, note }) {
   return (
-    <div className="border border-line rounded-sm p-4">
-      <p className="text-ink/40 text-xs mb-1">{label}</p>
-      <p className={small ? 'font-medium text-sm line-clamp-1' : 'text-2xl font-display font-semibold'}>{value}</p>
+    <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+      <h2 className="font-display text-xl font-semibold text-[#f3eee3]">{title}</h2>
+      {note && <p className="text-[11px] text-[#f3eee3]/35">{note}</p>}
+    </div>
+  );
+}
+
+function Stat({ label, value, sub, live, warn }) {
+  return (
+    <div className="bg-[#0b0a08] px-5 py-5">
+      <p className="text-[11px] text-[#f3eee3]/45 flex items-center gap-2">
+        {live && <span className={`w-1.5 h-1.5 rounded-full ${warn ? 'bg-[#e8604c]' : 'bg-[#5fb8a6]'}`} />}
+        {label}
+      </p>
+      <p className={`font-display text-3xl font-semibold mt-2 ${warn ? 'text-[#e8604c]' : 'text-[#f3eee3]'}`}>{value}</p>
+      {sub && <p className="text-[11px] text-[#f3eee3]/35 mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+function AttentionCard({ title, hint, items, to, action, render, danger }) {
+  if (items.length === 0) return null;
+  const shown = items.slice(0, 5);
+  return (
+    <div className={`border rounded-sm p-5 ${danger ? 'border-[#e8604c]/35' : 'border-[#f3eee3]/10'}`}>
+      <div className="flex items-baseline justify-between gap-3 mb-1">
+        <p className="text-sm font-medium text-[#f3eee3]">
+          {title} <span className={`font-mono ${danger ? 'text-[#e8604c]' : 'text-[#e3a857]'}`}>{items.length}</span>
+        </p>
+        <Link to={to} className="text-[11px] text-[#e3a857] hover:text-[#f0c07f] shrink-0">
+          {action} →
+        </Link>
+      </div>
+      <p className="text-[11px] text-[#f3eee3]/35 mb-3">{hint}</p>
+      <ul className="space-y-1.5 text-xs text-[#f3eee3]/70">
+        {shown.map((item) => (
+          <li key={item.id} className="line-clamp-1">
+            {render(item)}
+          </li>
+        ))}
+        {items.length > shown.length && <li className="text-[#f3eee3]/35">+ {items.length - shown.length} more</li>}
+      </ul>
     </div>
   );
 }

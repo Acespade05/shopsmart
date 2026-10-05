@@ -4,9 +4,11 @@ import api from '../services/api';
 import { fallbackTo } from '../utils/images';
 import { OrderTimeline, OrderActions } from '../components/OrderTracking';
 import { fmtINR } from '../utils/money';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function OrderDetail() {
   const { id } = useParams();
+  usePageTitle(`Order #${id}`);
   const location = useLocation();
   const [data, setData] = useState(null);
   const justPlaced = location.state?.justPlaced;

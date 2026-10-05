@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import api from '../services/api';
+import usePageTitle from '../hooks/usePageTitle';
 
 const CATEGORY_INFO = {
   electronics: {
@@ -50,6 +51,7 @@ export default function Category() {
   const { slug } = useParams();
   const [allProducts, setAllProducts] = useState([]);
   const [apiCategory, setApiCategory] = useState(null);
+  usePageTitle(apiCategory?.name);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   // Selected subcategory lives in the URL (?sub=Laptops) so header-menu links can open it directly.

@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -11,6 +11,13 @@ export default function Navbar() {
   const { itemCount } = useCart();
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  // Close the phone menu whenever the page changes.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     api
@@ -112,20 +119,6 @@ export default function Navbar() {
           >
             Wishlist
           </Link>
-
-
-          <Link
-            to="/activity"
-            className="
-              hidden
-              md:block
-              hover:text-[#e3a857]
-              transition-colors
-            "
-          >
-            Live
-          </Link>
-
 
           {/* =================================================
               CART
@@ -260,8 +253,43 @@ export default function Navbar() {
 
         </nav>
 
+        {/* Phone menu button */}
+        <button
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
+          className="md:hidden -mr-2 w-10 h-10 flex items-center justify-center text-[#f3eee3]/70 hover:text-[#e3a857]"
+        >
+          <span className="text-xl leading-none">{menuOpen ? '✕' : '☰'}</span>
+        </button>
+
       </div>
 
+
+      {/* =================================================
+          PHONE MENU (links hidden from the top bar on small screens)
+      ================================================== */}
+
+      {menuOpen && (
+        <nav id="mobile-menu" aria-label="Menu" className="md:hidden border-t border-[#f3eee3]/[0.06] px-6 py-3">
+          {[
+            ['/products', 'Shop all'],
+            ['/products?sort=discount', "Today's deals"],
+            ['/wishlist', 'Wishlist'],
+            ...(user ? [['/orders', 'Your orders'], ['/profile', 'Profile & addresses']] : []),
+            ...(user?.role === 'admin' ? [['/admin', 'Admin']] : []),
+          ].map(([to, label]) => (
+            <Link
+              key={to}
+              to={to}
+              className="block py-3 text-sm text-[#f3eee3]/75 hover:text-[#e3a857] border-b border-[#f3eee3]/[0.05] last:border-0"
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       {/* =================================================
           MOBILE SEARCH

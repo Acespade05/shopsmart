@@ -6,8 +6,10 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import DiscountProgress from '../components/DiscountProgress';
 import { fmtINR } from '../utils/money';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function Checkout() {
+  usePageTitle('Checkout');
   const { cart, subtotal, refreshCart, loaded: cartLoaded } = useCart();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();

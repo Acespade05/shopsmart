@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import ShopSmartBackground from './components/ShopSmartBackground';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import Navbar from './components/Navbar';
@@ -18,9 +18,9 @@ import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
-import LiveActivity from './pages/LiveActivity';
 
 import DarkPage from './components/DarkPage';
+import NotFound from './pages/NotFound';
 
 // Admin pages (and their chart library) load only when /admin is opened.
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
@@ -53,7 +53,8 @@ function App() {
                 <Route path="/orders/:id" element={<DarkPage><OrderDetail /></DarkPage>} />
                 <Route path="/search" element={<DarkPage><Search /></DarkPage>} />
                 <Route path="/profile" element={<DarkPage><Profile /></DarkPage>} />
-                <Route path="/activity" element={<DarkPage><LiveActivity /></DarkPage>} />
+                {/* The public bot feed moved into Admin → Bot activity */}
+                <Route path="/activity" element={<Navigate to="/admin?tab=activity" replace />} />
                 <Route
                   path="/admin"
                   element={
@@ -64,6 +65,7 @@ function App() {
                     </DarkPage>
                   }
                 />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
 

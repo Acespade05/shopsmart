@@ -45,6 +45,45 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
+// GET /api/admin/attention — things the store operator should act on now
+router.get('/attention', async (req, res) => {
+  try {
+    const [waiting, lowStock, outOfStock, returns] = await Promise.all([
+      pool.query(
+        `SELECT o.id, o.total, o.status, o.created_at, u.name AS customer_name
+         FROM orders o JOIN users u ON u.id = o.user_id
+         WHERE o.status IN ('pending', 'confirmed') AND o.created_at < now() - INTERVAL '24 hours'
+         ORDER BY o.created_at ASC`
+      ),
+      pool.query(
+        `SELECT id, name, slug, stock FROM products
+         WHERE is_active = true AND stock > 0 AND stock < 10
+         ORDER BY stock ASC, name ASC`
+      ),
+      pool.query(
+        `SELECT id, name, slug, stock FROM products
+         WHERE is_active = true AND stock <= 0
+         ORDER BY name ASC`
+      ),
+      pool.query(
+        `SELECT r.id, r.order_id, r.reason, r.created_at, u.name AS customer_name
+         FROM return_requests r JOIN users u ON u.id = r.user_id
+         WHERE r.status = 'requested'
+         ORDER BY r.created_at ASC`
+      ),
+    ]);
+    res.json({
+      waitingToShip: waiting.rows,
+      lowStock: lowStock.rows,
+      outOfStock: outOfStock.rows,
+      pendingReturns: returns.rows,
+    });
+  } catch (err) {
+    console.error('Admin attention error', err);
+    res.status(500).json({ error: 'Failed to fetch attention items' });
+  }
+});
+
 // GET /api/admin/products
 router.get('/products', async (req, res) => {
   try {
@@ -227,10 +266,13 @@ router.put('/users/:id/block', async (req, res) => {
 router.get('/inventory', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, sku, stock,
-              CASE WHEN stock < 10 THEN true ELSE false END AS low_stock
-       FROM (SELECT id, name, slug AS sku, stock FROM products) sub
-       ORDER BY stock ASC`
+      `SELECT p.id, p.name, p.slug, COALESCE(p.sku, p.slug) AS sku, p.stock, p.price, p.brand,
+              p.images[1] AS image, c.name AS category_name,
+              CASE WHEN p.stock < 10 THEN true ELSE false END AS low_stock
+       FROM products p
+       LEFT JOIN categories c ON c.id = p.category_id
+       WHERE p.is_active = true
+       ORDER BY p.stock ASC, p.name ASC`
     );
     res.json({ inventory: result.rows });
   } catch (err) {

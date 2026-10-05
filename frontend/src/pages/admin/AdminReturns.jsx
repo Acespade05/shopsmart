@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { fmtINR } from '../../utils/money';
 
@@ -56,10 +55,7 @@ export default function AdminReturns() {
         </div>
       ))}
       <p className="px-4 py-3 text-[11px] text-ink/40">
-        Approving a return doesn&apos;t change stock or the order; mark it refunded once the money is returned.{' '}
-        <Link to="/admin?tab=orders" className="text-emerald hover:underline">
-          View orders →
-        </Link>
+        Approving a return doesn&apos;t change stock or the order; mark it refunded once the money is returned.
       </p>
     </div>
   );

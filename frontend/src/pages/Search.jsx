@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function Search() {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
+  usePageTitle(query ? `Search: ${query}` : 'Search');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 

@@ -322,7 +322,7 @@ def main():
             'description': p['description'],
             'price': price,
             'original_price': original,
-            'stock': max(8, p['stock']),           # never 0: keeps bot add-to-cart behaving as before
+            'stock': max(25, p['stock']),          # floor of 25: never 0, and not flagged as low stock (<10)
             'images': p['images'],
             'rating': rescale_rating(p['rating']),
             'review_count': h(p['sku'], 40, 4800),

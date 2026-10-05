@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../config/database');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -22,8 +23,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/bot-activity/recent — public live feed
-router.get('/recent', async (req, res) => {
+// GET /api/bot-activity/recent — live feed, admins only
+router.get('/recent', authenticate, requireAdmin, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
     const result = await pool.query(

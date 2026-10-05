@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import api from '../services/api';
+import usePageTitle from '../hooks/usePageTitle';
 
 const PAGE_SIZE = 24;
 
@@ -29,6 +30,7 @@ export default function ProductList() {
   const inStock = searchParams.get('inStock') === 'true';
   const category = searchParams.get('category') || '';
   const brand = searchParams.get('brand') || '';
+  usePageTitle(brand || 'All products');
   const minRating = searchParams.get('minRating') || '';
   const minDiscount = searchParams.get('minDiscount') || '';
 

@@ -65,7 +65,6 @@ export default function Footer() {
           <Item to="/products?sort=discount">Today&apos;s deals</Item>
           <Item to="/products?sort=popular">Bestsellers</Item>
           <Item to="/products?sort=newest">New arrivals</Item>
-          <Item to="/activity">Live activity</Item>
         </Column>
       </div>
 

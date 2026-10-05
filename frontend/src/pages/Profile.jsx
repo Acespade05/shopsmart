@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function Profile() {
+  usePageTitle('Your profile');
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState(user?.name || '');

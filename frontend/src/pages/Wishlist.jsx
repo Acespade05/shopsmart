@@ -4,8 +4,10 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { fallbackTo } from '../utils/images';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function Wishlist() {
+  usePageTitle('Your wishlist');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();

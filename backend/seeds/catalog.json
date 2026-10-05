@@ -302,7 +302,7 @@
       "description": "Dolce Shine by Dolce & Gabbana is a vibrant and fruity fragrance, featuring notes of mango, jasmine, and blonde woods. It's a joyful and youthful scent.",
       "price": 5249,
       "original_price": null,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/fragrances/dolce-shine-eau-de/1.webp",
         "https://cdn.dummyjson.com/product-images/fragrances/dolce-shine-eau-de/2.webp",
@@ -498,7 +498,7 @@
       "description": "The Wooden Bathroom Sink with Mirror is a unique and stylish addition to your bathroom, featuring a wooden sink countertop and a matching mirror.",
       "price": 59999,
       "original_price": 65999,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/furniture/wooden-bathroom-sink-with-mirror/1.webp",
         "https://cdn.dummyjson.com/product-images/furniture/wooden-bathroom-sink-with-mirror/2.webp",
@@ -531,7 +531,7 @@
       "description": "Fresh and crisp apples, perfect for snacking or incorporating into various recipes.",
       "price": 69,
       "original_price": 79,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/groceries/apple/1.webp"
       ],
@@ -620,7 +620,7 @@
       "description": "Versatile cooking oil suitable for frying, sautéing, and various culinary applications.",
       "price": 169,
       "original_price": 189,
-      "stock": 10,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/groceries/cooking-oil/1.webp"
       ],
@@ -708,7 +708,7 @@
       "description": "Fresh eggs, a versatile ingredient for baking, cooking, or breakfast.",
       "price": 99,
       "original_price": 109,
-      "stock": 9,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/groceries/eggs/1.webp"
       ],
@@ -795,7 +795,7 @@
       "description": "Spicy green chili pepper, ideal for adding heat to your favorite recipes.",
       "price": 29,
       "original_price": null,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/groceries/green-chili-pepper/1.webp"
       ],
@@ -1060,7 +1060,7 @@
       "description": "Versatile and starchy potatoes, great for roasting, mashing, or as a side dish.",
       "price": 79,
       "original_price": null,
-      "stock": 13,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/groceries/potatoes/1.webp"
       ],
@@ -1420,7 +1420,7 @@
       "description": "The Table Lamp is a functional and decorative lighting solution for your living space. With a modern design, it provides both ambient and task lighting, enhancing the atmosphere.",
       "price": 2249,
       "original_price": 2399,
-      "stock": 9,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/home-decoration/table-lamp/1.webp"
       ],
@@ -1541,7 +1541,7 @@
       "description": "The Boxed Blender is a powerful and compact blender perfect for smoothies, shakes, and more. Its convenient design and multiple functions make it a versatile kitchen appliance.",
       "price": 1599,
       "original_price": 1699,
-      "stock": 9,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/kitchen-accessories/boxed-blender/1.webp",
         "https://cdn.dummyjson.com/product-images/kitchen-accessories/boxed-blender/2.webp",
@@ -1605,7 +1605,7 @@
       "description": "The Chopping Board is an essential kitchen accessory for food preparation. Made from durable material, it provides a safe and hygienic surface for cutting and chopping.",
       "price": 519,
       "original_price": 559,
-      "stock": 14,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/kitchen-accessories/chopping-board/1.webp"
       ],
@@ -1635,7 +1635,7 @@
       "description": "The Citrus Squeezer in Yellow is a handy tool for extracting juice from citrus fruits. Its vibrant color adds a cheerful touch to your kitchen gadgets.",
       "price": 359,
       "original_price": 409,
-      "stock": 22,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/kitchen-accessories/citrus-squeezer-yellow/1.webp"
       ],
@@ -1695,7 +1695,7 @@
       "description": "The Electric Stove provides a portable and efficient cooking solution. Ideal for small kitchens or as an additional cooking surface for various culinary needs.",
       "price": 1999,
       "original_price": 2349,
-      "stock": 21,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/kitchen-accessories/electric-stove/1.webp",
         "https://cdn.dummyjson.com/product-images/kitchen-accessories/electric-stove/2.webp",
@@ -1759,7 +1759,7 @@
       "description": "The Fork is a classic utensil for various dining and serving purposes. Its durable and ergonomic design makes it a reliable choice for everyday use.",
       "price": 159,
       "original_price": 169,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/kitchen-accessories/fork/1.webp"
       ],
@@ -1880,7 +1880,7 @@
       "description": "The Ice Cube Tray is a practical accessory for making ice cubes in various shapes. Perfect for keeping your drinks cool and adding a fun element to your beverages.",
       "price": 239,
       "original_price": null,
-      "stock": 13,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/kitchen-accessories/ice-cube-tray/1.webp"
       ],
@@ -1940,7 +1940,7 @@
       "description": "The Knife is an essential kitchen tool for chopping, slicing, and dicing. Its sharp blade and ergonomic handle make it a reliable choice for food preparation.",
       "price": 599,
       "original_price": 739,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/kitchen-accessories/knife/1.webp"
       ],
@@ -2365,7 +2365,7 @@
       "description": "The MacBook Pro 14 Inch in Space Grey is a powerful and sleek laptop, featuring Apple's M1 Pro chip for exceptional performance and a stunning Retina display.",
       "price": 165999,
       "original_price": null,
-      "stock": 24,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/laptops/apple-macbook-pro-14-inch-space-grey/1.webp",
         "https://cdn.dummyjson.com/product-images/laptops/apple-macbook-pro-14-inch-space-grey/2.webp",
@@ -2643,7 +2643,7 @@
       "description": "The Man Short Sleeve Shirt is a breezy and stylish option for warm days. With a comfortable fit and short sleeves, it's perfect for a laid-back yet polished look.",
       "price": 799,
       "original_price": 859,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/mens-shirts/man-short-sleeve-shirt/1.webp",
         "https://cdn.dummyjson.com/product-images/mens-shirts/man-short-sleeve-shirt/2.webp",
@@ -2721,7 +2721,7 @@
       "description": "The Nike Air Jordan 1 in Red and Black is an iconic basketball sneaker known for its stylish design and high-performance features, making it a favorite among sneaker enthusiasts and athletes.",
       "price": 8249,
       "original_price": null,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/mens-shoes/nike-air-jordan-1-red-and-black/1.webp",
         "https://cdn.dummyjson.com/product-images/mens-shoes/nike-air-jordan-1-red-and-black/2.webp",
@@ -2761,7 +2761,7 @@
       "description": "Nike Baseball Cleats are designed for maximum traction and performance on the baseball field. They provide stability and support for players during games and practices.",
       "price": 4399,
       "original_price": 5349,
-      "stock": 12,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/mens-shoes/nike-baseball-cleats/1.webp",
         "https://cdn.dummyjson.com/product-images/mens-shoes/nike-baseball-cleats/2.webp",
@@ -2841,7 +2841,7 @@
       "description": "The Sports Sneakers in Off White and Red combine style and functionality, making them a fashionable choice for sports enthusiasts. The red and off-white color combination adds a bold and energetic touch.",
       "price": 6599,
       "original_price": null,
-      "stock": 17,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/mens-shoes/sports-sneakers-off-white-&-red/1.webp",
         "https://cdn.dummyjson.com/product-images/mens-shoes/sports-sneakers-off-white-&-red/2.webp",
@@ -3215,7 +3215,7 @@
       "description": "The Apple AirPower Wireless Charger provides a convenient way to charge your compatible Apple devices wirelessly. Simply place your devices on the charging mat for effortless charging.",
       "price": 6399,
       "original_price": null,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-airpower-wireless-charger/1.webp"
       ],
@@ -3309,7 +3309,7 @@
       "description": "The Apple MagSafe Battery Pack is a portable and convenient way to add extra battery life to your MagSafe-compatible iPhone. Attach it magnetically for a secure connection.",
       "price": 7999,
       "original_price": 9649,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-magsafe-battery-pack/1.webp",
         "https://cdn.dummyjson.com/product-images/mobile-accessories/apple-magsafe-battery-pack/2.webp"
@@ -3502,7 +3502,7 @@
       "description": "The Selfie Stick Monopod is a extendable and foldable device for capturing the perfect selfie or group photo. Compatible with smartphones and cameras.",
       "price": 1049,
       "original_price": 1299,
-      "stock": 11,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/mobile-accessories/selfie-stick-monopod/1.webp"
       ],
@@ -3761,7 +3761,7 @@
       "description": "The Oppo A57 is a mid-range smartphone known for its sleek design and capable features. It offers a balance of performance and affordability, making it a popular choice.",
       "price": 20499,
       "original_price": null,
-      "stock": 19,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/smartphones/oppo-a57/1.webp",
         "https://cdn.dummyjson.com/product-images/smartphones/oppo-a57/2.webp",
@@ -3894,7 +3894,7 @@
       "description": "The Realme X is a mid-range smartphone known for its sleek design and impressive display. It offers a good balance of performance and camera capabilities for users seeking a quality device.",
       "price": 24999,
       "original_price": 26999,
-      "stock": 12,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/smartphones/realme-x/1.webp",
         "https://cdn.dummyjson.com/product-images/smartphones/realme-x/2.webp",
@@ -3993,7 +3993,7 @@
       "description": "The Samsung Galaxy S8 is a premium smartphone with an Infinity Display, offering a stunning visual experience. It boasts advanced camera capabilities and cutting-edge technology.",
       "price": 41499,
       "original_price": 51499,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s8/1.webp",
         "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s8/2.webp",
@@ -4026,7 +4026,7 @@
       "description": "The Samsung Galaxy S10 is a flagship device featuring a dynamic AMOLED display, versatile camera system, and powerful performance. It represents innovation and excellence in smartphone technology.",
       "price": 57999,
       "original_price": 61499,
-      "stock": 19,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s10/1.webp",
         "https://cdn.dummyjson.com/product-images/smartphones/samsung-galaxy-s10/2.webp",
@@ -4125,7 +4125,7 @@
       "description": "The Vivo X21 is a premium smartphone with a focus on cutting-edge technology. It features an in-display fingerprint sensor, a high-resolution display, and advanced camera capabilities.",
       "price": 41499,
       "original_price": 49999,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/smartphones/vivo-x21/1.webp",
         "https://cdn.dummyjson.com/product-images/smartphones/vivo-x21/2.webp",
@@ -4218,7 +4218,7 @@
       "description": "The Baseball Glove is a protective glove worn by baseball players. It is designed to catch and field the baseball, providing players with comfort and control during the game.",
       "price": 1099,
       "original_price": null,
-      "stock": 22,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/sports-accessories/baseball-glove/1.webp",
         "https://cdn.dummyjson.com/product-images/sports-accessories/baseball-glove/2.webp",
@@ -4370,7 +4370,7 @@
       "description": "The Cricket Helmet is a protective headgear worn by cricket players, especially batsmen and wicketkeepers. It provides protection against fast bowling and bouncers.",
       "price": 1999,
       "original_price": 2199,
-      "stock": 10,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/sports-accessories/cricket-helmet/1.webp",
         "https://cdn.dummyjson.com/product-images/sports-accessories/cricket-helmet/2.webp",
@@ -4553,7 +4553,7 @@
       "description": "The Metal Baseball Bat is a durable and lightweight baseball bat made from metal alloys. It is commonly used in baseball games for hitting and batting practice.",
       "price": 1349,
       "original_price": 1699,
-      "stock": 16,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/sports-accessories/metal-baseball-bat/1.webp"
       ],
@@ -4613,7 +4613,7 @@
       "description": "The Tennis Racket is an essential piece of equipment used in the sport of tennis. It features a frame with strings and a grip, allowing players to hit the tennis ball.",
       "price": 2249,
       "original_price": 2799,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/sports-accessories/tennis-racket/1.webp"
       ],
@@ -4643,7 +4643,7 @@
       "description": "The Volleyball is a standard ball used in the sport of volleyball. It is designed for passing, setting, and spiking over the net during volleyball matches.",
       "price": 539,
       "original_price": 609,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/sports-accessories/volleyball/1.webp"
       ],
@@ -4705,7 +4705,7 @@
       "description": "The Classic Sun Glasses offer a timeless design with a neutral frame and UV-protected lenses. These sunglasses are versatile and suitable for various occasions.",
       "price": 1099,
       "original_price": null,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/sunglasses/classic-sun-glasses/1.webp",
         "https://cdn.dummyjson.com/product-images/sunglasses/classic-sun-glasses/2.webp",
@@ -4737,7 +4737,7 @@
       "description": "The Green and Black Glasses feature a bold combination of green and black colors, adding a touch of vibrancy to your eyewear collection. They are both stylish and eye-catching.",
       "price": 1549,
       "original_price": null,
-      "stock": 24,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/sunglasses/green-and-black-glasses/1.webp",
         "https://cdn.dummyjson.com/product-images/sunglasses/green-and-black-glasses/2.webp",
@@ -5052,7 +5052,7 @@
       "description": "The Short Frock is a playful and trendy dress with a shorter length. Ideal for casual outings or special occasions, it combines style and comfort for a fashionable look.",
       "price": 1099,
       "original_price": 1249,
-      "stock": 22,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/tops/short-frock/1.webp",
         "https://cdn.dummyjson.com/product-images/tops/short-frock/2.webp",
@@ -5258,7 +5258,7 @@
       "description": "The Women Handbag in Black is a classic and versatile accessory that complements various outfits. With a timeless black color and functional design, it's a must-have in every woman's wardrobe.",
       "price": 3599,
       "original_price": 4049,
-      "stock": 11,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/womens-bags/women-handbag-black/1.webp",
         "https://cdn.dummyjson.com/product-images/womens-bags/women-handbag-black/2.webp",
@@ -5409,7 +5409,7 @@
       "description": "The Dress Pea is a stylish and comfortable dress with a pea pattern. Perfect for casual outings, it adds a playful and fun element to your wardrobe, making it a great choice for day-to-day wear.",
       "price": 2249,
       "original_price": 2749,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/womens-dresses/dress-pea/1.webp",
         "https://cdn.dummyjson.com/product-images/womens-dresses/dress-pea/2.webp",
@@ -5551,7 +5551,7 @@
       "description": "The Tropical Earring is a fun and playful accessory inspired by tropical elements. Featuring vibrant colors and a lively design, it's perfect for adding a touch of summer to your look.",
       "price": 799,
       "original_price": null,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/womens-jewellery/tropical-earring/1.webp",
         "https://cdn.dummyjson.com/product-images/womens-jewellery/tropical-earring/2.webp",
@@ -5583,7 +5583,7 @@
       "description": "The Black & Brown Slipper is a comfortable and stylish choice for casual wear. Featuring a blend of black and brown colors, it adds a touch of sophistication to your relaxation.",
       "price": 999,
       "original_price": null,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/womens-shoes/black-&-brown-slipper/1.webp",
         "https://cdn.dummyjson.com/product-images/womens-shoes/black-&-brown-slipper/2.webp",
@@ -5739,7 +5739,7 @@
       "description": "The Red Shoes make a bold statement with their vibrant red color. Whether for a party or a casual outing, these shoes add a pop of color and style to your wardrobe.",
       "price": 1749,
       "original_price": 2099,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/womens-shoes/red-shoes/1.webp",
         "https://cdn.dummyjson.com/product-images/womens-shoes/red-shoes/2.webp",
@@ -5844,7 +5844,7 @@
       "description": "The Rolex Datejust Women's watch is an iconic timepiece designed for women. With a timeless design and a date complication, it offers both elegance and functionality.",
       "price": 879999,
       "original_price": 1046999,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/womens-watches/rolex-datejust-women/1.webp",
         "https://cdn.dummyjson.com/product-images/womens-watches/rolex-datejust-women/2.webp",
@@ -5878,7 +5878,7 @@
       "description": "The Gold Women's Watch is a stunning accessory that combines luxury and style. Featuring a gold-plated case and a chic design, it adds a touch of glamour to any outfit.",
       "price": 63999,
       "original_price": 78499,
-      "stock": 8,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/womens-watches/watch-gold-for-women/1.webp",
         "https://cdn.dummyjson.com/product-images/womens-watches/watch-gold-for-women/2.webp",
@@ -5911,7 +5911,7 @@
       "description": "The Women's Wrist Watch is a versatile and fashionable timepiece for everyday wear. With a comfortable strap and a simple yet elegant design, it complements various styles.",
       "price": 10499,
       "original_price": 11999,
-      "stock": 12,
+      "stock": 25,
       "images": [
         "https://cdn.dummyjson.com/product-images/womens-watches/women's-wrist-watch/1.webp",
         "https://cdn.dummyjson.com/product-images/womens-watches/women's-wrist-watch/2.webp",

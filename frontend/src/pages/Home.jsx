@@ -5,6 +5,7 @@ import ProductRow from '../components/ProductRow';
 import OfferCarousel from '../components/OfferCarousel';
 import { recentlyViewed } from '../utils/recent';
 import { sortCategories, shortName, CATEGORY_LABEL } from '../utils/categories';
+import usePageTitle from '../hooks/usePageTitle';
 
 // Lifestyle photo (Pexels) and tagline for each category. A category added later
 // without an entry here still appears, using a product photo from the API.
@@ -57,6 +58,7 @@ function mixCategories(products, perCategory, total) {
 }
 
 export default function Home() {
+  usePageTitle();
   const [categories, setCategories] = useState([]);
   const [deals, setDeals] = useState([]);
   const [bestsellers, setBestsellers] = useState([]);

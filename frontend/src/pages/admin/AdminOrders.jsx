@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import AdminReturns from './AdminReturns';
+import { fmtINR } from '../../utils/money';
 
 const statuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 
@@ -47,12 +49,15 @@ export default function AdminOrders() {
       ) : (
         <div className="border border-line rounded-sm divide-y divide-line">
           {orders.map((order) => (
-            <div key={order.id} className="flex items-center justify-between px-4 py-3 text-sm gap-4">
+            <div key={order.id} className="flex flex-wrap items-center justify-between px-4 py-3 text-sm gap-x-4 gap-y-2">
               <span className="font-mono w-16">#{order.id}</span>
-              <span className="flex-1">
+              <span className="flex-1 min-w-[180px]">
                 {order.customer_name} <span className="text-ink/40">({order.customer_email})</span>
               </span>
-              <span className="font-mono">₹{parseFloat(order.total).toLocaleString('en-IN')}</span>
+              <span className="text-xs text-ink/40 hidden sm:inline">
+                {new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              </span>
+              <span className="font-mono">₹{fmtINR(order.total)}</span>
               <select
                 value={order.status}
                 onChange={(e) => updateStatus(order.id, e.target.value)}
@@ -69,6 +74,12 @@ export default function AdminOrders() {
           {orders.length === 0 && <p className="text-ink/40 text-sm p-4">No orders found.</p>}
         </div>
       )}
+
+      <section id="returns" className="mt-14 scroll-mt-32">
+        <h2 className="font-display text-xl font-semibold mb-1">Returns</h2>
+        <p className="text-xs text-ink/40 mb-4">Customers can request a return within 10 days of delivery.</p>
+        <AdminReturns />
+      </section>
     </div>
   );
 }

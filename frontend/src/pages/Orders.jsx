@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { fmtINR } from '../utils/money';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function Orders() {
+  usePageTitle('Your orders');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
