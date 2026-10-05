@@ -7,10 +7,12 @@ import AdminInventory from './AdminInventory';
 import AdminUsers from './AdminUsers';
 import AdminDiscounts from './AdminDiscounts';
 import AdminActivity from './AdminActivity';
+import AdminReturns from './AdminReturns';
 
 const tabs = [
   { key: 'overview', label: 'Overview' },
   { key: 'orders', label: 'Orders' },
+  { key: 'returns', label: 'Returns' },
   { key: 'inventory', label: 'Inventory' },
   { key: 'users', label: 'Users' },
   { key: 'discounts', label: 'Discounts' },
@@ -51,6 +53,7 @@ export default function AdminLayout() {
 
       {activeTab === 'overview' && <AdminOverview />}
       {activeTab === 'orders' && <AdminOrders />}
+      {activeTab === 'returns' && <AdminReturns />}
       {activeTab === 'inventory' && <AdminInventory />}
       {activeTab === 'users' && <AdminUsers />}
       {activeTab === 'discounts' && <AdminDiscounts />}

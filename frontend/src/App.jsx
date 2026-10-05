@@ -43,17 +43,17 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/products" element={<ProductList />} />
                 <Route path="/products/:slug" element={<ProductDetail />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/cart" element={<Cart />} />
+                <Route path="/login" element={<DarkPage><Login /></DarkPage>} />
+                <Route path="/register" element={<DarkPage><Register /></DarkPage>} />
+                <Route path="/cart" element={<DarkPage><Cart /></DarkPage>} />
                 <Route path="/category/:slug" element={<Category />} />
-                <Route path="/wishlist" element={<Wishlist />} />
-                <Route path="/checkout" element={<Checkout />} />
-                <Route path="/orders" element={<Orders />} />
-                <Route path="/orders/:id" element={<OrderDetail />} />
-                <Route path="/search" element={<Search />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/activity" element={<LiveActivity />} />
+                <Route path="/wishlist" element={<DarkPage><Wishlist /></DarkPage>} />
+                <Route path="/checkout" element={<DarkPage><Checkout /></DarkPage>} />
+                <Route path="/orders" element={<DarkPage><Orders /></DarkPage>} />
+                <Route path="/orders/:id" element={<DarkPage><OrderDetail /></DarkPage>} />
+                <Route path="/search" element={<DarkPage><Search /></DarkPage>} />
+                <Route path="/profile" element={<DarkPage><Profile /></DarkPage>} />
+                <Route path="/activity" element={<DarkPage><LiveActivity /></DarkPage>} />
                 <Route
                   path="/admin"
                   element={

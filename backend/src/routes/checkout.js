@@ -42,6 +42,29 @@ router.get('/tiers', async (req, res) => {
   }
 });
 
+// GET /api/checkout/offers — PUBLIC. Manual coupon codes shoppers can enter.
+router.get('/offers', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT code, type, value, min_order_value FROM discount_codes
+       WHERE code NOT LIKE 'TIER%' AND is_active = true
+         AND (max_uses IS NULL OR used_count < max_uses)
+       ORDER BY min_order_value ASC`
+    );
+    res.json({
+      offers: result.rows.map((r) => ({
+        code: r.code,
+        type: r.type,
+        value: parseFloat(r.value),
+        minOrderValue: parseFloat(r.min_order_value),
+      })),
+    });
+  } catch (err) {
+    console.error('Get offers error', err);
+    res.status(500).json({ error: 'Failed to fetch offers' });
+  }
+});
+
 // --- everything below this line requires authentication ---
 router.use(authenticate);
 
@@ -234,6 +257,7 @@ router.post('/confirm', async (req, res) => {
       [req.user.id, req.sessionId, total, subtotal, discount, paymentMethod, addressId]
     );
     const order = orderResult.rows[0];
+    await client.query(`INSERT INTO order_status_history (order_id, status) VALUES ($1, 'confirmed')`, [order.id]);
 
     for (const item of cart.items) {
       await client.query(

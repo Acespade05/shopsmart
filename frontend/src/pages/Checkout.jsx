@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import { savedCoupon, saveCoupon } from '../utils/coupon';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import DiscountProgress from '../components/DiscountProgress';
+import { fmtINR } from '../utils/money';
 
 export default function Checkout() {
-  const { cart, subtotal, refreshCart } = useCart();
-  const { user } = useAuth();
+  const { cart, subtotal, refreshCart, loaded: cartLoaded } = useCart();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [addresses, setAddresses] = useState([]);
@@ -27,8 +29,11 @@ export default function Checkout() {
   const [placing, setPlacing] = useState(false);
 
   useEffect(() => {
+    // Wait until sign-in and the cart have loaded, otherwise a page refresh
+    // would bounce the shopper to /login or /cart before their data arrives.
+    if (authLoading || !cartLoaded) return;
     if (!user) {
-      navigate('/login');
+      navigate('/login?next=/checkout');
       return;
     }
     if (cart.items.length === 0) {
@@ -45,7 +50,9 @@ export default function Checkout() {
     api.post('/checkout/start', {}).then((res) => {
       setAutoTier(res.data.autoTier);
     });
-  }, [user]);
+    // Coupon chosen on the cart page
+    if (savedCoupon()) handleApplyCoupon(savedCoupon());
+  }, [user, authLoading, cartLoaded]);
 
   async function handleSaveAddress(e) {
     e.preventDefault();
@@ -59,10 +66,12 @@ export default function Checkout() {
     }
   }
 
-  async function handleApplyCoupon() {
+  async function handleApplyCoupon(codeArg) {
+    const code = typeof codeArg === 'string' ? codeArg : couponCode;
     setCouponError('');
     try {
-      const res = await api.post('/checkout/apply-coupon', { code: couponCode });
+      const res = await api.post('/checkout/apply-coupon', { code });
+      setCouponCode(code);
       setCouponResult(res.data);
     } catch (err) {
       setCouponResult(null);
@@ -95,6 +104,7 @@ export default function Checkout() {
       });
 
       await refreshCart();
+      saveCoupon('');
       navigate(`/orders/${orderRes.data.order.id}`, { state: { justPlaced: true } });
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong placing your order. Please try again.');
@@ -228,14 +238,14 @@ export default function Checkout() {
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                 className="input-field flex-1"
               />
-              <button onClick={handleApplyCoupon} className="btn-secondary">
+              <button onClick={() => handleApplyCoupon()} className="btn-secondary">
                 Apply
               </button>
             </div>
             {couponError && <p className="text-coral text-sm mt-2">{couponError}</p>}
             {couponResult && (
               <p className="text-emerald text-sm mt-2">
-                "{couponResult.code}" applied — you saved ₹{couponResult.discount.toLocaleString('en-IN')}
+                "{couponResult.code}" applied — you saved ₹{fmtINR(couponResult.discount)}
               </p>
             )}
           </section>
@@ -278,7 +288,7 @@ export default function Checkout() {
                     {item.name}
                     {item.size ? ` (${item.size})` : ''} × {item.quantity}
                   </span>
-                  <span className="font-mono shrink-0">₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
+                  <span className="font-mono shrink-0">₹{fmtINR((item.price * item.quantity))}</span>
                 </div>
               ))}
             </div>
@@ -286,17 +296,17 @@ export default function Checkout() {
             <div className="border-t border-line pt-4 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-ink/60">Subtotal</span>
-                <span className="font-mono">₹{subtotal.toLocaleString('en-IN')}</span>
+                <span className="font-mono">₹{fmtINR(subtotal)}</span>
               </div>
               {effectiveDiscount > 0 && (
                 <div className="flex justify-between text-emerald">
                   <span>Discount</span>
-                  <span className="font-mono">−₹{effectiveDiscount.toLocaleString('en-IN')}</span>
+                  <span className="font-mono">−₹{fmtINR(effectiveDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-semibold text-base pt-2 border-t border-line">
                 <span>Total</span>
-                <span className="font-mono">₹{total.toLocaleString('en-IN')}</span>
+                <span className="font-mono">₹{fmtINR(total)}</span>
               </div>
             </div>
 
@@ -311,7 +321,7 @@ export default function Checkout() {
               disabled={!selectedAddressId || placing}
               className="btn-primary w-full mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {placing ? 'Placing order...' : `Place order — ₹${total.toLocaleString('en-IN')}`}
+              {placing ? 'Placing order...' : `Place order — ₹${fmtINR(total)}`}
             </button>
 
             {!selectedAddressId && (

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import ProductRow from '../components/ProductRow';
 import OfferCarousel from '../components/OfferCarousel';
+import { recentlyViewed } from '../utils/recent';
 import { sortCategories, shortName, CATEGORY_LABEL } from '../utils/categories';
 
 // Lifestyle photo (Pexels) and tagline for each category. A category added later
@@ -59,6 +60,7 @@ export default function Home() {
   const [categories, setCategories] = useState([]);
   const [deals, setDeals] = useState([]);
   const [bestsellers, setBestsellers] = useState([]);
+  const [recent] = useState(() => recentlyViewed());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -322,6 +324,10 @@ export default function Home() {
         products={bestsellers}
         loading={loading}
       />
+
+      {recent.length > 0 && (
+        <ProductRow eyebrow="Pick up where you left off" title="Recently viewed" products={recent} loading={false} />
+      )}
 
       {/* =========================
           CTA SECTION

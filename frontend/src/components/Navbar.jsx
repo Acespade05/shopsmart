@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
+import SearchBox from './SearchBox';
 import { sortCategories, shortName } from '../utils/categories';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const { itemCount } = useCart();
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
@@ -19,13 +19,6 @@ export default function Navbar() {
       .catch(() => {});
   }, []);
 
-  function handleSearch(e) {
-    e.preventDefault();
-
-    if (query.trim()) {
-      navigate(`/search?q=${encodeURIComponent(query.trim())}`);
-    }
-  }
 
   return (
     <header
@@ -77,40 +70,7 @@ export default function Navbar() {
             SEARCH
         ================================================== */}
 
-        <form
-          onSubmit={handleSearch}
-          className="
-            flex-1
-            max-w-md
-            hidden
-            md:block
-          "
-        >
-          <div className="relative">
-
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search products..."
-              className="
-                w-full
-                bg-[#14120f]
-                border
-                border-[#f3eee3]/10
-                text-[#f3eee3]
-                placeholder:text-[#f3eee3]/25
-                text-xs
-                px-4
-                py-3
-                outline-none
-                transition-all
-                focus:border-[#e3a857]/50
-              "
-            />
-
-          </div>
-        </form>
+        <SearchBox className="flex-1 max-w-md hidden md:block" />
 
 
         {/* =================================================
@@ -307,15 +267,9 @@ export default function Navbar() {
           MOBILE SEARCH
       ================================================== */}
 
-      <form onSubmit={handleSearch} className="md:hidden px-6 pb-3">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search products..."
-          className="w-full bg-[#14120f] border border-[#f3eee3]/10 text-[#f3eee3] placeholder:text-[#f3eee3]/25 text-xs px-4 py-3 outline-none focus:border-[#e3a857]/50"
-        />
-      </form>
+      <div className="md:hidden px-6 pb-3">
+        <SearchBox />
+      </div>
 
 
       {/* =================================================

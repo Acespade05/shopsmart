@@ -5,6 +5,21 @@ import api from '../services/api';
 
 const PAGE_SIZE = 24;
 
+function Chip({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 text-[11px] rounded-sm border transition-colors ${
+        active
+          ? 'border-[#e3a857] text-[#e3a857] bg-[#e3a857]/10'
+          : 'border-[#f3eee3]/15 text-[#f3eee3]/55 hover:border-[#f3eee3]/40 hover:text-[#f3eee3]'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function ProductList() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -14,16 +29,28 @@ export default function ProductList() {
   const inStock = searchParams.get('inStock') === 'true';
   const category = searchParams.get('category') || '';
   const brand = searchParams.get('brand') || '';
+  const minRating = searchParams.get('minRating') || '';
+  const minDiscount = searchParams.get('minDiscount') || '';
 
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [showAllBrands, setShowAllBrands] = useState(false);
 
   useEffect(() => {
     api.get('/categories').then((res) => setCategories(res.data.categories)).catch(() => {});
   }, []);
+
+  // Brands available in the selected category.
+  useEffect(() => {
+    api
+      .get('/products/facets', { params: category ? { category } : {} })
+      .then((res) => setBrands(res.data.brands))
+      .catch(() => setBrands([]));
+  }, [category]);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +61,8 @@ export default function ProductList() {
     if (inStock) params.inStock = 'true';
     if (category) params.category = category;
     if (brand) params.brand = brand;
+    if (minRating) params.minRating = minRating;
+    if (minDiscount) params.minDiscount = minDiscount;
 
     api
       .get('/products', { params })
@@ -51,7 +80,14 @@ export default function ProductList() {
     return () => {
       cancelled = true;
     };
-  }, [sort, minPrice, maxPrice, inStock, category, brand, page]);
+  }, [sort, minPrice, maxPrice, inStock, category, brand, minRating, minDiscount, page]);
+
+  function updateParams(changes) {
+    setPage(1);
+    const next = new URLSearchParams(searchParams);
+    Object.entries(changes).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k)));
+    setSearchParams(next);
+  }
 
   function updateParam(key, value) {
     setPage(1); // any filter change starts again from page 1
@@ -137,7 +173,7 @@ export default function ProductList() {
                 {[{ slug: '', name: 'All products' }, ...categories].map((c) => (
                   <button
                     key={c.slug || 'all'}
-                    onClick={() => updateParam('category', c.slug)}
+                    onClick={() => updateParams({ category: c.slug, brand: '' })}
                     className={`block w-full text-left text-xs py-1 transition-colors ${
                       category === c.slug ? 'text-[#e3a857]' : 'text-[#f3eee3]/50 hover:text-[#f3eee3]'
                     }`}
@@ -252,6 +288,64 @@ export default function ProductList() {
               </div>
             </div>
 
+
+            {/* Brand */}
+            {brands.length > 0 && (
+              <div>
+                <p className="font-mono text-[10px] tracking-[0.25em] uppercase text-[#e3a857] mb-4">Brand</p>
+                <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                  {(showAllBrands ? brands : brands.slice(0, 8)).map((b) => (
+                    <label key={b.brand} className="flex items-center gap-3 text-xs text-[#f3eee3]/60 cursor-pointer hover:text-[#f3eee3]">
+                      <input
+                        type="radio"
+                        name="brand"
+                        checked={brand === b.brand}
+                        onChange={() => updateParam('brand', b.brand)}
+                        className="accent-[#e3a857]"
+                      />
+                      <span className="flex-1 line-clamp-1">{b.brand}</span>
+                      <span className="text-[#f3eee3]/25">{b.count}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-4 mt-3">
+                  {brands.length > 8 && (
+                    <button onClick={() => setShowAllBrands((v) => !v)} className="text-[11px] text-[#e3a857] hover:text-[#f0c07f]">
+                      {showAllBrands ? 'Show fewer' : `Show all ${brands.length}`}
+                    </button>
+                  )}
+                  {brand && (
+                    <button onClick={() => updateParam('brand', '')} className="text-[11px] text-[#f3eee3]/40 hover:text-[#f3eee3]">
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Rating */}
+            <div>
+              <p className="font-mono text-[10px] tracking-[0.25em] uppercase text-[#e3a857] mb-4">Customer rating</p>
+              <div className="flex flex-wrap gap-2">
+                {['4', '3'].map((r) => (
+                  <Chip key={r} active={minRating === r} onClick={() => updateParam('minRating', minRating === r ? '' : r)}>
+                    {r}★ & up
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            {/* Discount */}
+            <div>
+              <p className="font-mono text-[10px] tracking-[0.25em] uppercase text-[#e3a857] mb-4">Discount</p>
+              <div className="flex flex-wrap gap-2">
+                {['10', '20', '30'].map((d) => (
+                  <Chip key={d} active={minDiscount === d} onClick={() => updateParam('minDiscount', minDiscount === d ? '' : d)}>
+                    {d}% or more
+                  </Chip>
+                ))}
+              </div>
+            </div>
 
             {/* Stock */}
             <label className="flex items-center gap-3 text-xs text-[#f3eee3]/60 cursor-pointer">

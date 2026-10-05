@@ -52,7 +52,7 @@ export default function ProductCard({ product }) {
         {user && (
           <button
             onClick={toggleWishlist}
-            className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-paper/90 flex items-center justify-center hover:scale-110 transition-transform"
+            className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-[#0b0a08]/70 flex items-center justify-center hover:scale-110 transition-transform"
           >
             <span className={inWishlist ? 'text-coral' : 'text-ink/30'}>
               {inWishlist ? '♥' : '♡'}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
@@ -8,6 +8,11 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Return to the page that sent the shopper here (e.g. checkout). Only local paths.
+  const next = (searchParams.get('next') || '').startsWith('/') && !(searchParams.get('next') || '').startsWith('//')
+    ? searchParams.get('next')
+    : '/';
 
   function update(field) {
     return (e) => setForm({ ...form, [field]: e.target.value });
@@ -19,7 +24,7 @@ export default function Register() {
     setLoading(true);
     try {
       await register(form.name, form.email, form.password, form.phone);
-      navigate('/');
+      navigate(next);
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
@@ -73,7 +78,7 @@ export default function Register() {
 
       <p className="text-center text-sm text-ink/60 mt-6">
         Already have an account?{' '}
-        <Link to="/login" className="text-emerald hover:underline">
+        <Link to={next === '/' ? '/login' : `/login?next=${encodeURIComponent(next)}`} className="text-emerald hover:underline">
           Sign in
         </Link>
       </p>

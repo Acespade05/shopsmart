@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const {
-      category, minPrice, maxPrice, minRating, inStock, brand, subcategory,
+      category, minPrice, maxPrice, minRating, inStock, brand, subcategory, minDiscount,
       sort = 'newest', page = 1, limit = 20,
     } = req.query;
 
@@ -40,6 +40,11 @@ router.get('/', async (req, res) => {
     if (subcategory) {
       values.push(subcategory);
       conditions.push(`subcategory = $${values.length}`);
+    }
+    if (minDiscount) {
+      // percent off MRP, e.g. minDiscount=20 → at least 20% off
+      values.push(parseFloat(minDiscount) / 100);
+      conditions.push(`original_price > 0 AND (1 - price / original_price) >= $${values.length}`);
     }
 
     const sortMap = {
@@ -114,6 +119,37 @@ router.get('/search', async (req, res) => {
   } catch (err) {
     console.error('Search error', err);
     res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// GET /api/products/facets?category=&subcategory= — filter options for the Shop page
+router.get('/facets', async (req, res) => {
+  try {
+    const conditions = ['is_active = true'];
+    const values = [];
+    if (req.query.category) {
+      values.push(req.query.category);
+      conditions.push(`category_id = (SELECT id FROM categories WHERE slug = $${values.length})`);
+    }
+    if (req.query.subcategory) {
+      values.push(req.query.subcategory);
+      conditions.push(`subcategory = $${values.length}`);
+    }
+    const where = conditions.join(' AND ');
+    const brands = await pool.query(
+      `SELECT brand, COUNT(*)::int AS count FROM products
+       WHERE ${where} AND brand IS NOT NULL
+       GROUP BY brand ORDER BY count DESC, brand ASC`,
+      values
+    );
+    const range = await pool.query(`SELECT MIN(price) AS min, MAX(price) AS max FROM products WHERE ${where}`, values);
+    res.json({
+      brands: brands.rows,
+      price: { min: parseFloat(range.rows[0].min) || 0, max: parseFloat(range.rows[0].max) || 0 },
+    });
+  } catch (err) {
+    console.error('Facets error', err);
+    res.status(500).json({ error: 'Failed to fetch filters' });
   }
 });
 

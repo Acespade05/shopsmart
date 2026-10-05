@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -9,6 +9,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Return to the page that sent the shopper here (e.g. checkout). Only local paths.
+  const next = (searchParams.get('next') || '').startsWith('/') && !(searchParams.get('next') || '').startsWith('//')
+    ? searchParams.get('next')
+    : '/';
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -16,7 +21,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/');
+      navigate(next);
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
@@ -64,7 +69,7 @@ export default function Login() {
 
       <p className="text-center text-sm text-ink/60 mt-6">
         Don't have an account?{' '}
-        <Link to="/register" className="text-emerald hover:underline">
+        <Link to={next === '/' ? '/register' : `/register?next=${encodeURIComponent(next)}`} className="text-emerald hover:underline">
           Register
         </Link>
       </p>

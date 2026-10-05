@@ -6,11 +6,16 @@ const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState({ items: [] });
+  const [loaded, setLoaded] = useState(false); // false until the first /cart response
   const { user } = useAuth();
 
   const refreshCart = useCallback(async () => {
-    const res = await api.get('/cart');
-    setCart(res.data.cart);
+    try {
+      const res = await api.get('/cart');
+      setCart(res.data.cart);
+    } finally {
+      setLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -43,7 +48,7 @@ export function CartProvider({ children }) {
 
   return (
     <CartContext.Provider
-      value={{ cart, itemCount, subtotal, addItem, updateItem, removeItem, clearCart, refreshCart }}
+      value={{ cart, loaded, itemCount, subtotal, addItem, updateItem, removeItem, clearCart, refreshCart }}
     >
       {children}
     </CartContext.Provider>

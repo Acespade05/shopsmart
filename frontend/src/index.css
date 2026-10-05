@@ -413,3 +413,55 @@
     animation: none;
   }
 }
+/* =========================================================
+   DARK THEME FOR OLDER PAGES
+   Cart, checkout, orders, profile, sign-in, admin… were written
+   for a light theme (ink text on paper). Wrapping them in
+   .theme-dark (see components/DarkPage.jsx) maps those colours
+   onto the dark storefront palette without rewriting each page.
+   ========================================================= */
+.theme-dark {
+  min-height: 100vh;
+  background: #0b0a08;
+  color: #f3eee3;
+}
+.theme-dark .text-ink { color: #f3eee3 !important; }
+.theme-dark .text-ink\/70 { color: rgb(243 238 227 / 0.70) !important; }
+.theme-dark .text-ink\/60 { color: rgb(243 238 227 / 0.60) !important; }
+.theme-dark .text-ink\/50 { color: rgb(243 238 227 / 0.50) !important; }
+.theme-dark .text-ink\/40 { color: rgb(243 238 227 / 0.42) !important; }
+.theme-dark .text-ink\/30 { color: rgb(243 238 227 / 0.32) !important; }
+.theme-dark .text-emerald { color: #e3a857 !important; }
+.theme-dark .text-coral { color: #e8604c !important; }
+.theme-dark .border-line,
+.theme-dark .divide-line > * + * { border-color: rgb(243 238 227 / 0.10) !important; }
+.theme-dark .border-emerald,
+.theme-dark .border-emerald\/30,
+.theme-dark .border-emerald\/20 { border-color: rgb(227 168 87 / 0.45) !important; }
+.theme-dark .border-coral\/20 { border-color: rgb(232 96 76 / 0.35) !important; }
+.theme-dark .bg-emerald-light,
+.theme-dark .bg-paper,
+.theme-dark .bg-ink\/5 { background-color: #14120f !important; }
+.theme-dark .bg-emerald { background-color: #e3a857 !important; color: #0b0a08 !important; }
+.theme-dark .bg-coral\/10 { background-color: rgb(232 96 76 / 0.12) !important; }
+
+.theme-dark .input-field {
+  background: transparent !important;
+  color: #f3eee3;
+  border-color: rgb(243 238 227 / 0.15) !important;
+}
+.theme-dark .input-field::placeholder { color: rgb(243 238 227 / 0.28); }
+.theme-dark .input-field:focus { border-color: rgb(227 168 87 / 0.6) !important; --tw-ring-color: rgb(227 168 87 / 0.25); }
+.theme-dark select.input-field option { background: #14120f; }
+
+.theme-dark .btn-primary {
+  background: linear-gradient(to right, #f0c07f, #e3a857) !important;
+  color: #0b0a08 !important;
+}
+.theme-dark .btn-primary:hover { background: linear-gradient(to right, #e3a857, #c98a34) !important; }
+.theme-dark .btn-secondary {
+  color: #f3eee3 !important;
+  border-color: rgb(243 238 227 / 0.2) !important;
+}
+.theme-dark .btn-secondary:hover { border-color: #e3a857 !important; color: #e3a857 !important; }
+.theme-dark .bg-paper\/90 { background-color: rgb(20 18 15 / 0.9) !important; }

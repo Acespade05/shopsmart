@@ -149,10 +149,48 @@ router.put('/orders/:id/status', async (req, res) => {
       req.params.id,
     ]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    await pool.query('INSERT INTO order_status_history (order_id, status) VALUES ($1, $2)', [req.params.id, status]);
     res.json({ order: result.rows[0] });
   } catch (err) {
     console.error('Update order status error', err);
     res.status(500).json({ error: 'Failed to update order status' });
+  }
+});
+
+// GET /api/admin/returns
+router.get('/returns', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT r.*, o.total, u.name AS customer_name, u.email AS customer_email
+       FROM return_requests r
+       JOIN orders o ON o.id = r.order_id
+       JOIN users u ON u.id = r.user_id
+       ORDER BY r.created_at DESC`
+    );
+    res.json({ returns: result.rows });
+  } catch (err) {
+    console.error('Admin list returns error', err);
+    res.status(500).json({ error: 'Failed to fetch returns' });
+  }
+});
+
+// PUT /api/admin/returns/:id — approve / reject / mark refunded
+router.put('/returns/:id', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const valid = ['requested', 'approved', 'rejected', 'refunded'];
+    if (!valid.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${valid.join(', ')}` });
+    }
+    const result = await pool.query(
+      'UPDATE return_requests SET status = $1, updated_at = now() WHERE id = $2 RETURNING *',
+      [status, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Return request not found' });
+    res.json({ return: result.rows[0] });
+  } catch (err) {
+    console.error('Update return error', err);
+    res.status(500).json({ error: 'Failed to update return' });
   }
 });
 

@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import ProductRow from '../components/ProductRow';
 import ImageGallery from '../components/ImageGallery';
 import Reviews from '../components/Reviews';
+import { rememberProduct, recentlyViewed } from '../utils/recent';
 import { estimateDelivery, formatDeliveryDate, isValidPincode, savedPincode, savePincode } from '../utils/delivery';
 
 const inr = (n) => `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -74,7 +75,10 @@ export default function ProductDetail() {
   const load = useCallback(() => {
     return api
       .get(`/products/${slug}`)
-      .then((res) => setData(res.data))
+      .then((res) => {
+        setData(res.data);
+        rememberProduct(res.data.product);
+      })
       .catch(() => setNotFound(true));
   }, [slug]);
 
@@ -119,6 +123,7 @@ export default function ProductDetail() {
   }
 
   const { product, reviews, related } = data;
+  const recent = recentlyViewed().filter((p) => p.id !== product.id);
   const price = parseFloat(product.price);
   const mrp = product.original_price ? parseFloat(product.original_price) : null;
   const hasDiscount = mrp && mrp > price;
@@ -396,6 +401,10 @@ export default function ProductDetail() {
 
       {related?.length > 0 && (
         <ProductRow eyebrow="More like this" title="You may also like" products={related} loading={false} />
+      )}
+
+      {recent.length > 0 && (
+        <ProductRow eyebrow="Your history" title="Recently viewed" products={recent} loading={false} />
       )}
     </div>
   );

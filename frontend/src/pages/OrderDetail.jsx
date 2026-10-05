@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import api from '../services/api';
+import { fallbackTo } from '../utils/images';
+import { OrderTimeline, OrderActions } from '../components/OrderTracking';
+import { fmtINR } from '../utils/money';
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -8,13 +11,17 @@ export default function OrderDetail() {
   const [data, setData] = useState(null);
   const justPlaced = location.state?.justPlaced;
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api.get(`/orders/${id}`).then((res) => setData(res.data));
   }, [id]);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
   if (!data) return <div className="max-w-3xl mx-auto px-6 py-20 text-ink/40 text-sm">Loading...</div>;
 
-  const { order, items, address } = data;
+  const { order, items, address, history, returnRequest } = data;
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
@@ -33,18 +40,24 @@ export default function OrderDetail() {
       </div>
 
       <section className="mb-8">
+        <OrderTimeline order={order} history={history} address={address} />
+      </section>
+
+      <section className="mb-8">
         <h2 className="font-medium text-sm text-ink/60 mb-3">Items</h2>
         <div className="space-y-3">
           {items.map((item, i) => (
             <div key={i} className="flex items-center gap-4 border-b border-line pb-3">
-              <img src={item.images?.[0]} alt={item.name} className="w-14 h-14 object-cover rounded-sm bg-emerald-light" />
+              <img src={item.images?.[0]} alt={item.name} className="w-14 h-14 object-contain p-1 rounded-sm bg-emerald-light" onError={fallbackTo(item.name)} />
               <div className="flex-1">
-                <p className="text-sm font-medium">{item.name}</p>
+                <Link to={`/products/${item.slug}`} className="text-sm font-medium hover:text-emerald">
+                  {item.name}
+                </Link>
                 <p className="text-xs text-ink/40">
                   {item.size ? `Size ${item.size} · ` : ''}Qty {item.quantity}
                 </p>
               </div>
-              <p className="font-mono text-sm">₹{(item.price * item.quantity).toLocaleString('en-IN')}</p>
+              <p className="font-mono text-sm">₹{fmtINR((item.price * item.quantity))}</p>
             </div>
           ))}
         </div>
@@ -67,20 +80,24 @@ export default function OrderDetail() {
           <div className="text-sm space-y-1">
             <div className="flex justify-between">
               <span className="text-ink/60">Subtotal</span>
-              <span className="font-mono">₹{parseFloat(order.subtotal).toLocaleString('en-IN')}</span>
+              <span className="font-mono">₹{fmtINR(parseFloat(order.subtotal))}</span>
             </div>
             {parseFloat(order.discount) > 0 && (
               <div className="flex justify-between text-emerald">
                 <span>Discount</span>
-                <span className="font-mono">−₹{parseFloat(order.discount).toLocaleString('en-IN')}</span>
+                <span className="font-mono">−₹{fmtINR(parseFloat(order.discount))}</span>
               </div>
             )}
             <div className="flex justify-between font-semibold pt-1 border-t border-line">
               <span>Total</span>
-              <span className="font-mono">₹{parseFloat(order.total).toLocaleString('en-IN')}</span>
+              <span className="font-mono">₹{fmtINR(parseFloat(order.total))}</span>
             </div>
           </div>
         </section>
+      </div>
+
+      <div className="mb-10">
+        <OrderActions order={order} returnRequest={returnRequest} onChange={load} />
       </div>
 
       <Link to="/orders" className="text-emerald text-sm hover:underline">

@@ -2,6 +2,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import DiscountProgress from '../components/DiscountProgress';
+import CouponBox from '../components/CouponBox';
+import { fallbackTo } from '../utils/images';
+import { fmtINR } from '../utils/money';
 
 export default function Cart() {
   const { cart, subtotal, updateItem, removeItem } = useCart();
@@ -22,7 +25,7 @@ export default function Cart() {
 
   function handleCheckout() {
     if (!user) {
-      navigate('/login');
+      navigate('/login?next=/checkout');
       return;
     }
     navigate('/checkout');
@@ -38,13 +41,13 @@ export default function Cart() {
 
       <div className="space-y-6 mb-10">
         {cart.items.map((item) => (
-          <div key={`${item.productId}-${item.size || ''}`} className="flex items-center gap-4 border-b border-line pb-6">
-            <img src={item.image} alt={item.name} className="w-20 h-20 object-cover rounded-sm bg-emerald-light" />
+          <div key={`${item.productId}-${item.size || ''}`} className="flex flex-wrap sm:flex-nowrap items-center gap-4 border-b border-line pb-6">
+            <img src={item.image} alt={item.name} className="w-20 h-20 object-contain p-1 rounded-sm bg-emerald-light" onError={fallbackTo(item.name)} />
 
-            <div className="flex-1">
+            <div className="flex-1 min-w-[160px]">
               <p className="font-medium text-sm mb-1">{item.name}</p>
               {item.size && <p className="text-xs text-ink/50 mb-1">Size: {item.size}</p>}
-              <p className="price-tag pl-3 text-sm">₹{item.price.toLocaleString('en-IN')}</p>
+              <p className="price-tag pl-3 text-sm">₹{fmtINR(item.price)}</p>
             </div>
 
             <input
@@ -56,7 +59,7 @@ export default function Cart() {
             />
 
             <p className="w-24 text-right font-mono text-sm">
-              ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+              ₹{fmtINR((item.price * item.quantity))}
             </p>
 
             <button
@@ -69,11 +72,14 @@ export default function Cart() {
         ))}
       </div>
 
-      <div className="flex justify-end">
-        <div className="w-64">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
+        <div className="w-full md:max-w-sm">
+          <CouponBox subtotal={subtotal} />
+        </div>
+        <div className="w-full md:w-64">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-ink/60">Subtotal</span>
-            <span className="font-mono">₹{subtotal.toLocaleString('en-IN')}</span>
+            <span className="font-mono">₹{fmtINR(subtotal)}</span>
           </div>
           <p className="text-xs text-ink/40 mb-4">Final discount calculated at checkout.</p>
           <button onClick={handleCheckout} className="btn-primary w-full">

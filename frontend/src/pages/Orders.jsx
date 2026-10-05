@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { fmtINR } from '../utils/money';
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
@@ -33,7 +34,7 @@ export default function Orders() {
               <span className="text-xs px-2 py-1 rounded-sm bg-emerald-light text-emerald capitalize">
                 {order.status}
               </span>
-              <p className="font-mono text-sm">₹{parseFloat(order.total).toLocaleString('en-IN')}</p>
+              <p className="font-mono text-sm">₹{fmtINR(parseFloat(order.total))}</p>
             </Link>
           ))}
         </div>
