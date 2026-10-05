@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
 
     const query = `
       SELECT id, name, slug, price, original_price, stock, images, rating, review_count,
-             brand, subcategory,
+             brand, subcategory, sizes,
              (SELECT c.slug FROM categories c WHERE c.id = products.category_id) AS category_slug
       FROM products
       WHERE ${conditions.join(' AND ')}
@@ -145,12 +145,12 @@ router.get('/:slug', async (req, res) => {
     );
 
     const relatedResult = await pool.query(
-      `SELECT id, name, slug, price, original_price, stock, images, rating, review_count, brand
+      `SELECT id, name, slug, price, original_price, stock, images, rating, review_count, brand, sizes
        FROM products
        WHERE category_id = $1 AND id != $2 AND is_active = true
-       ORDER BY rating DESC
-       LIMIT 4`,
-      [product.category_id, product.id]
+       ORDER BY (subcategory IS NOT DISTINCT FROM $3) DESC, rating DESC
+       LIMIT 12`,
+      [product.category_id, product.id, product.subcategory]
     );
 
     res.json({ product, reviews: reviewsResult.rows, related: relatedResult.rows });

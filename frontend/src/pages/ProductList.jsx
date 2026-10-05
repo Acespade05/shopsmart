@@ -13,6 +13,7 @@ export default function ProductList() {
   const maxPrice = searchParams.get('maxPrice') || '';
   const inStock = searchParams.get('inStock') === 'true';
   const category = searchParams.get('category') || '';
+  const brand = searchParams.get('brand') || '';
 
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
@@ -32,6 +33,7 @@ export default function ProductList() {
     if (maxPrice) params.maxPrice = maxPrice;
     if (inStock) params.inStock = 'true';
     if (category) params.category = category;
+    if (brand) params.brand = brand;
 
     api
       .get('/products', { params })
@@ -49,7 +51,7 @@ export default function ProductList() {
     return () => {
       cancelled = true;
     };
-  }, [sort, minPrice, maxPrice, inStock, category, page]);
+  }, [sort, minPrice, maxPrice, inStock, category, brand, page]);
 
   function updateParam(key, value) {
     setPage(1); // any filter change starts again from page 1
@@ -84,8 +86,16 @@ export default function ProductList() {
             </p>
 
             <h1 className="font-display text-5xl md:text-7xl font-semibold leading-none">
-              All products.
+              {brand ? `${brand}.` : 'All products.'}
             </h1>
+            {brand && (
+              <button
+                onClick={() => updateParam('brand', '')}
+                className="mt-4 text-xs text-[#e3a857] hover:text-[#f0c07f]"
+              >
+                ✕ Clear brand filter
+              </button>
+            )}
 
             <p className="mt-5 text-sm text-[#f3eee3]/40 max-w-md">
               Everything in one place. Browse, filter, and find something
@@ -109,13 +119,13 @@ export default function ProductList() {
 
         <div className="h-px bg-[#f3eee3]/10 mb-10" />
 
-        <div className="flex gap-12">
+        <div className="flex flex-col md:flex-row gap-10 md:gap-12">
 
           {/* =========================
               FILTERS
           ========================== */}
 
-          <aside className="w-52 shrink-0 space-y-10">
+          <aside className="w-full md:w-52 shrink-0 space-y-8 md:space-y-10">
 
             {/* Category */}
             <div>
@@ -269,7 +279,7 @@ export default function ProductList() {
               PRODUCTS
           ========================== */}
 
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
 
             {!loading && products.length === 0 ? (
 

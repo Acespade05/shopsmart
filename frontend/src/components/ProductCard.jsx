@@ -10,7 +10,9 @@ export default function ProductCard({ product }) {
   const { user } = useAuth();
   const [inWishlist, setInWishlist] = useState(false);
 
-  const cartItem = cart.items.find((i) => i.productId === product.id);
+  // Clothing/footwear need a size, so the card links to the product page instead of adding directly.
+  const needsSize = product.sizes?.length > 0;
+  const cartItem = needsSize ? null : cart.items.find((i) => i.productId === product.id && !i.size);
 
   const hasDiscount = product.original_price && parseFloat(product.original_price) > parseFloat(product.price);
   const discountPct = hasDiscount
@@ -97,7 +99,7 @@ export default function ProductCard({ product }) {
         )}
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
         <div className="price-tag pl-3 text-sm font-semibold">
           ₹{parseFloat(product.price).toLocaleString('en-IN')}
           {hasDiscount && (
@@ -107,7 +109,11 @@ export default function ProductCard({ product }) {
           )}
         </div>
 
-        {cartItem ? (
+        {needsSize ? (
+          <span className="text-xs border border-ink/20 rounded-sm px-2 py-1 group-hover:border-emerald transition-colors">
+            Select size
+          </span>
+        ) : cartItem ? (
           <div className="flex items-center gap-2 border border-emerald rounded-sm">
             <button
               onClick={(e) => handleQuantityChange(e, -1)}

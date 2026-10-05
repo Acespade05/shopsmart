@@ -273,9 +273,10 @@ export default function Checkout() {
 
             <div className="space-y-2 mb-4 text-sm">
               {cart.items.map((item) => (
-                <div key={item.productId} className="flex justify-between">
+                <div key={`${item.productId}-${item.size || ''}`} className="flex justify-between">
                   <span className="text-ink/60 line-clamp-1 pr-2">
-                    {item.name} × {item.quantity}
+                    {item.name}
+                    {item.size ? ` (${item.size})` : ''} × {item.quantity}
                   </span>
                   <span className="font-mono shrink-0">₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
                 </div>

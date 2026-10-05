@@ -40,7 +40,9 @@ export default function OrderDetail() {
               <img src={item.images?.[0]} alt={item.name} className="w-14 h-14 object-cover rounded-sm bg-emerald-light" />
               <div className="flex-1">
                 <p className="text-sm font-medium">{item.name}</p>
-                <p className="text-xs text-ink/40">Qty {item.quantity}</p>
+                <p className="text-xs text-ink/40">
+                  {item.size ? `Size ${item.size} · ` : ''}Qty {item.quantity}
+                </p>
               </div>
               <p className="font-mono text-sm">₹{(item.price * item.quantity).toLocaleString('en-IN')}</p>
             </div>

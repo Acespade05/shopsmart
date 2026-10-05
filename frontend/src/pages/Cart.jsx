@@ -38,11 +38,12 @@ export default function Cart() {
 
       <div className="space-y-6 mb-10">
         {cart.items.map((item) => (
-          <div key={item.productId} className="flex items-center gap-4 border-b border-line pb-6">
+          <div key={`${item.productId}-${item.size || ''}`} className="flex items-center gap-4 border-b border-line pb-6">
             <img src={item.image} alt={item.name} className="w-20 h-20 object-cover rounded-sm bg-emerald-light" />
 
             <div className="flex-1">
               <p className="font-medium text-sm mb-1">{item.name}</p>
+              {item.size && <p className="text-xs text-ink/50 mb-1">Size: {item.size}</p>}
               <p className="price-tag pl-3 text-sm">₹{item.price.toLocaleString('en-IN')}</p>
             </div>
 
@@ -50,7 +51,7 @@ export default function Cart() {
               type="number"
               min="1"
               value={item.quantity}
-              onChange={(e) => updateItem(item.productId, Math.max(1, parseInt(e.target.value, 10) || 1))}
+              onChange={(e) => updateItem(item.productId, Math.max(1, parseInt(e.target.value, 10) || 1), item.size)}
               className="input-field w-16 text-center"
             />
 
@@ -59,7 +60,7 @@ export default function Cart() {
             </p>
 
             <button
-              onClick={() => removeItem(item.productId)}
+              onClick={() => removeItem(item.productId, item.size)}
               className="text-ink/40 hover:text-coral text-sm transition-colors"
             >
               Remove

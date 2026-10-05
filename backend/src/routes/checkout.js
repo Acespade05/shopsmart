@@ -167,13 +167,16 @@ router.post('/confirm', async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Total quantity per product (the same product can be in the cart in several sizes).
+    const qtyByProduct = {};
     for (const item of cart.items) {
-      const stockResult = await client.query('SELECT stock FROM products WHERE id = $1 FOR UPDATE', [
-        item.productId,
-      ]);
-      if (stockResult.rows.length === 0 || stockResult.rows[0].stock < item.quantity) {
+      qtyByProduct[item.productId] = (qtyByProduct[item.productId] || 0) + item.quantity;
+    }
+    for (const [productId, qty] of Object.entries(qtyByProduct)) {
+      const stockResult = await client.query('SELECT stock FROM products WHERE id = $1 FOR UPDATE', [productId]);
+      if (stockResult.rows.length === 0 || stockResult.rows[0].stock < qty) {
         await client.query('ROLLBACK');
-        return res.status(409).json({ error: `Insufficient stock for product ${item.productId}` });
+        return res.status(409).json({ error: `Insufficient stock for product ${productId}` });
       }
     }
 
@@ -234,8 +237,8 @@ router.post('/confirm', async (req, res) => {
 
     for (const item of cart.items) {
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4)`,
-        [order.id, item.productId, item.quantity, item.price]
+        `INSERT INTO order_items (order_id, product_id, quantity, price, size) VALUES ($1, $2, $3, $4, $5)`,
+        [order.id, item.productId, item.quantity, item.price, item.size || null]
       );
       await client.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.productId]);
       await client.query(

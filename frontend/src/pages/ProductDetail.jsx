@@ -1,47 +1,162 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import ProductCard from '../components/ProductCard';
-import { fallbackTo, placeholder } from '../utils/images';
+import ProductRow from '../components/ProductRow';
+import ImageGallery from '../components/ImageGallery';
+import Reviews from '../components/Reviews';
+import { estimateDelivery, formatDeliveryDate, isValidPincode, savedPincode, savePincode } from '../utils/delivery';
+
+const inr = (n) => `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+
+function DeliveryCheck({ shippingInfo }) {
+  const [pin, setPin] = useState(savedPincode());
+  const [checked, setChecked] = useState(isValidPincode(savedPincode()) ? savedPincode() : '');
+  const [error, setError] = useState('');
+  const estimate = checked ? estimateDelivery(checked) : null;
+
+  function check(e) {
+    e.preventDefault();
+    if (!isValidPincode(pin)) {
+      setError('Enter a valid 6-digit PIN code');
+      setChecked('');
+      return;
+    }
+    setError('');
+    setChecked(pin);
+    savePincode(pin);
+  }
+
+  return (
+    <div className="border border-[#f3eee3]/10 rounded-sm p-5">
+      <p className="font-mono text-[10px] tracking-[0.25em] uppercase text-[#e3a857] mb-3">Delivery</p>
+      <form onSubmit={check} className="flex gap-2">
+        <input
+          value={pin}
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          inputMode="numeric"
+          placeholder="Enter PIN code"
+          aria-label="PIN code"
+          className="flex-1 bg-transparent border border-[#f3eee3]/15 px-3 py-2.5 text-sm text-[#f3eee3] placeholder:text-[#f3eee3]/25 outline-none focus:border-[#e3a857]/60 rounded-sm"
+        />
+        <button className="px-4 text-xs tracking-[0.15em] uppercase text-[#e3a857] border border-[#e3a857]/40 hover:bg-[#e3a857] hover:text-[#0b0a08] transition-colors rounded-sm">
+          Check
+        </button>
+      </form>
+      {error && <p className="text-xs text-[#e8604c] mt-2">{error}</p>}
+      {estimate && (
+        <p className="text-sm mt-3 text-[#f3eee3]/80">
+          Free delivery by <span className="text-[#f3eee3] font-medium">{formatDeliveryDate(estimate.by)}</span>
+          <span className="text-[#f3eee3]/40"> to {checked} · {estimate.min}–{estimate.max} days</span>
+        </p>
+      )}
+      {!estimate && !error && shippingInfo && <p className="text-xs mt-3 text-[#f3eee3]/40">{shippingInfo}</p>}
+    </div>
+  );
+}
 
 export default function ProductDetail() {
   const { slug } = useParams();
-  const [data, setData] = useState(null);
-  const [quantity, setQuantity] = useState(1);
-  const [added, setAdded] = useState(false);
-  const [inWishlist, setInWishlist] = useState(false);
-  const [activeImage, setActiveImage] = useState(0);
+  const navigate = useNavigate();
   const { addItem } = useCart();
   const { user } = useAuth();
 
+  const [data, setData] = useState(null);
+  const [notFound, setNotFound] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [size, setSize] = useState('');
+  const [sizeError, setSizeError] = useState(false);
+  const [added, setAdded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [inWishlist, setInWishlist] = useState(false);
+
+  const load = useCallback(() => {
+    return api
+      .get(`/products/${slug}`)
+      .then((res) => setData(res.data))
+      .catch(() => setNotFound(true));
+  }, [slug]);
+
   useEffect(() => {
     setData(null);
-    setActiveImage(0);
-    api.get(`/products/${slug}`).then((res) => setData(res.data));
-  }, [slug]);
+    setNotFound(false);
+    setQuantity(1);
+    setSize('');
+    setSizeError(false);
+    load();
+    window.scrollTo(0, 0);
+  }, [load]);
+
+  // Is this product already in the shopper's wishlist?
+  useEffect(() => {
+    if (!user || !data) return;
+    api
+      .get('/wishlist')
+      .then((res) => setInWishlist(res.data.wishlist.some((w) => w.id === data.product.id)))
+      .catch(() => {});
+  }, [user, data]);
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen bg-[#0b0a08] text-[#f3eee3]">
+        <div className="max-w-6xl mx-auto px-6 py-24 text-center">
+          <p className="font-display text-3xl">Product not found.</p>
+          <Link to="/products" className="inline-block mt-6 text-sm text-[#e3a857]">
+            Browse all products →
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!data) {
     return (
       <div className="min-h-screen bg-[#0b0a08]">
-        <div className="max-w-6xl mx-auto px-6 py-20 text-[#f3eee3]/40 text-sm">Loading...</div>
+        <div className="max-w-6xl mx-auto px-6 py-20 text-[#f3eee3]/40 text-sm">Loading…</div>
       </div>
     );
   }
 
   const { product, reviews, related } = data;
-  const images = product.images?.length ? product.images : [placeholder(product.name)];
-  const hasDiscount = product.original_price && parseFloat(product.original_price) > parseFloat(product.price);
+  const price = parseFloat(product.price);
+  const mrp = product.original_price ? parseFloat(product.original_price) : null;
+  const hasDiscount = mrp && mrp > price;
+  const discountPct = hasDiscount ? Math.round((1 - price / mrp) * 100) : 0;
+  const sizes = product.sizes || [];
+  const needsSize = sizes.length > 0;
+  const maxQty = Math.max(1, Math.min(product.stock, 10));
+  const specs = {
+    ...(product.specs || {}),
+    Category: product.category_name,
+    ...(product.return_policy ? { Returns: product.return_policy } : {}),
+  };
 
-  async function handleAddToCart() {
-    await addItem(product.id, quantity);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1500);
+  async function addToCart() {
+    if (needsSize && !size) {
+      setSizeError(true);
+      return false;
+    }
+    setBusy(true);
+    try {
+      await addItem(product.id, quantity, needsSize ? size : undefined);
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1800);
+      return true;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function buyNow() {
+    if (await addToCart()) navigate(user ? '/checkout' : '/cart');
   }
 
   async function toggleWishlist() {
-    if (!user) return;
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     if (inWishlist) {
       await api.delete(`/wishlist/${product.id}`);
       setInWishlist(false);
@@ -52,141 +167,236 @@ export default function ProductDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0a08] text-[#f3eee3] [&_.bg-emerald-light]:!bg-[#14120f] [&_.text-ink]:!text-[#f3eee3] [&_.text-ink\/80]:!text-[#f3eee3]/80 [&_.text-ink\/70]:!text-[#f3eee3]/70 [&_.text-ink\/60]:!text-[#f3eee3]/60 [&_.text-ink\/50]:!text-[#f3eee3]/50 [&_.text-ink\/40]:!text-[#f3eee3]/40 [&_.text-ink\/20]:!text-[#f3eee3]/20 [&_.border-ink\/20]:!border-[#f3eee3]/20 [&_.text-emerald]:!text-[#5fb8a6] [&_.border-emerald]:!border-[#e3a857]">
-    <div className="max-w-6xl mx-auto px-6 py-12">
-      <div className="grid md:grid-cols-2 gap-12 mb-16">
-        <div>
-          <div className="aspect-square bg-emerald-light rounded-sm overflow-hidden">
-            <img
-              src={images[activeImage] || images[0]}
-              alt={product.name}
-              className="w-full h-full object-contain p-6"
-              onError={fallbackTo(product.name)}
-            />
-          </div>
-          {images.length > 1 && (
-            <div className="flex gap-3 mt-4">
-              {images.map((src, i) => (
-                <button
-                  key={src}
-                  onClick={() => setActiveImage(i)}
-                  onMouseEnter={() => setActiveImage(i)}
-                  className={`w-16 h-16 rounded-sm overflow-hidden bg-emerald-light border-2 transition-colors ${
-                    i === activeImage ? 'border-emerald' : 'border-transparent hover:border-ink/20'
-                  }`}
-                  aria-label={`View image ${i + 1}`}
-                >
-                  <img src={src} alt="" className="w-full h-full object-contain p-1" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <Link to={`/category/${product.category_slug}`} className="text-xs text-emerald font-mono uppercase">
+    <div className="min-h-screen bg-[#0b0a08] text-[#f3eee3]">
+      <div className="max-w-7xl mx-auto px-6 pt-8 pb-4">
+        {/* Breadcrumb */}
+        <nav aria-label="Breadcrumb" className="text-[11px] text-[#f3eee3]/40 mb-8 flex flex-wrap gap-x-2 gap-y-1">
+          <Link to="/" className="hover:text-[#e3a857]">Home</Link>
+          <span>/</span>
+          <Link to={`/category/${product.category_slug}`} className="hover:text-[#e3a857]">
             {product.category_name}
           </Link>
-          {product.brand && (
-            <p className="text-sm text-ink/50 mt-2">
-              Brand: <span className="text-ink/80">{product.brand}</span>
-            </p>
-          )}
-          <h1 className="text-3xl font-display font-semibold mt-2 mb-3">{product.name}</h1>
-
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-gold text-sm">★ {parseFloat(product.rating).toFixed(1)}</span>
-            <span className="text-ink/40 text-sm">({Number(product.review_count).toLocaleString('en-IN')} ratings)</span>
-          </div>
-
-          <div className="price-tag pl-4 text-2xl font-semibold mb-6">
-            ₹{parseFloat(product.price).toLocaleString('en-IN')}
-            {hasDiscount && (
-              <span className="text-ink/40 font-normal line-through ml-3 text-base">
-                ₹{parseFloat(product.original_price).toLocaleString('en-IN')}
-              </span>
-            )}
-          </div>
-
-          <p className="text-ink/70 text-sm leading-relaxed mb-6">{product.description}</p>
-
-          {(product.shipping_info || product.return_policy || product.warranty) && (
-            <ul className="text-xs text-ink/60 space-y-1.5 mb-6">
-              {product.shipping_info && <li>🚚 {product.shipping_info}</li>}
-              {product.return_policy && <li>↩ {product.return_policy}</li>}
-              {product.warranty && <li>🛡 {product.warranty}</li>}
-            </ul>
-          )}
-
-          <p className="text-sm mb-6">
-            {product.stock > 0 ? (
-              <span className="text-emerald">In stock — {product.stock} available</span>
-            ) : (
-              <span className="text-coral">Out of stock</span>
-            )}
-          </p>
-
-          <div className="flex items-center gap-4">
-            <input
-              type="number"
-              min="1"
-              max={product.stock}
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="input-field w-20 !bg-transparent !text-[#f3eee3] !border-[#f3eee3]/20"
-            />
-            <button
-              onClick={handleAddToCart}
-              disabled={product.stock === 0}
-              className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {added ? 'Added ✓' : 'Add to cart'}
-            </button>
-            {user && (
-              <button
-                onClick={toggleWishlist}
-                className="w-11 h-11 rounded-sm border border-ink/20 flex items-center justify-center hover:border-coral transition-colors"
+          {product.subcategory && (
+            <>
+              <span>/</span>
+              <Link
+                to={`/category/${product.category_slug}?sub=${encodeURIComponent(product.subcategory)}`}
+                className="hover:text-[#e3a857]"
               >
-                <span className={inWishlist ? 'text-coral' : 'text-ink/40'}>
-                  {inWishlist ? '♥' : '♡'}
-                </span>
-              </button>
+                {product.subcategory}
+              </Link>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-[#f3eee3]/60 line-clamp-1">{product.name}</span>
+        </nav>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-10 lg:gap-14">
+          {/* ---------------- Gallery ---------------- */}
+          <ImageGallery images={product.images || []} name={product.name} />
+
+          {/* ---------------- Buy box ---------------- */}
+          <div>
+            {product.brand && (
+              <Link
+                to={`/products?brand=${encodeURIComponent(product.brand)}`}
+                className="font-mono text-[11px] tracking-[0.2em] uppercase text-[#e3a857] hover:text-[#f0c07f]"
+              >
+                {product.brand}
+              </Link>
             )}
+            <h1 className="font-display text-3xl md:text-4xl font-semibold leading-tight mt-2">{product.name}</h1>
+
+            <a href="#reviews" className="inline-flex items-center gap-2 mt-4 text-sm">
+              <span className="bg-[#e3a857] text-[#0b0a08] text-xs font-semibold px-2 py-0.5 rounded-sm">
+                {parseFloat(product.rating).toFixed(1)} ★
+              </span>
+              <span className="text-[#f3eee3]/45 hover:text-[#f3eee3]">
+                {Number(product.review_count).toLocaleString('en-IN')} rating{Number(product.review_count) === 1 ? '' : 's'}
+              </span>
+            </a>
+
+            {/* Price */}
+            <div className="mt-6 pb-6 border-b border-[#f3eee3]/10">
+              <div className="flex items-baseline gap-3 flex-wrap">
+                {hasDiscount && <span className="text-2xl text-[#e8604c] font-light">-{discountPct}%</span>}
+                <span className="text-3xl font-semibold font-mono">{inr(price)}</span>
+              </div>
+              {hasDiscount && (
+                <p className="text-xs text-[#f3eee3]/40 mt-1">
+                  M.R.P.: <span className="line-through">{inr(mrp)}</span>
+                </p>
+              )}
+              <p className="text-[11px] text-[#f3eee3]/35 mt-1">Inclusive of all taxes</p>
+            </div>
+
+            {/* Offers — the same real offers the checkout applies */}
+            <div className="py-5 border-b border-[#f3eee3]/10 space-y-2 text-xs text-[#f3eee3]/60">
+              <p>
+                <span className="text-[#e3a857]">Automatic savings</span> · 5% off above ₹500, 10% above ₹1,000,
+                15% above ₹2,000 at checkout
+              </p>
+              <p>
+                <span className="text-[#e3a857]">Coupon</span> · 10% off with code WELCOME10
+              </p>
+            </div>
+
+            {/* Size */}
+            {needsSize && (
+              <div className="pt-6">
+                <div className="flex items-baseline justify-between mb-3">
+                  <p className="text-sm">
+                    Size{size && <span className="text-[#f3eee3]/50">: {size}</span>}
+                  </p>
+                  {sizeError && <p className="text-xs text-[#e8604c]">Please select a size</p>}
+                </div>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Size">
+                  {sizes.map((s) => (
+                    <button
+                      key={s}
+                      role="radio"
+                      aria-checked={size === s}
+                      onClick={() => {
+                        setSize(s);
+                        setSizeError(false);
+                      }}
+                      className={`min-w-[52px] px-3 py-2.5 text-xs rounded-sm border transition-colors ${
+                        size === s
+                          ? 'border-[#e3a857] text-[#e3a857] bg-[#e3a857]/10'
+                          : sizeError
+                            ? 'border-[#e8604c]/60 text-[#f3eee3]/70'
+                            : 'border-[#f3eee3]/15 text-[#f3eee3]/70 hover:border-[#f3eee3]/50'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Stock + quantity + buttons */}
+            <div className="pt-6">
+              <p className="text-sm mb-4">
+                {product.stock <= 0 ? (
+                  <span className="text-[#e8604c]">Out of stock</span>
+                ) : product.stock < 10 ? (
+                  <span className="text-[#e3a857]">Only {product.stock} left in stock</span>
+                ) : (
+                  <span className="text-[#5fb8a6]">In stock</span>
+                )}
+              </p>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center border border-[#f3eee3]/15 rounded-sm">
+                  <button
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="w-10 h-11 text-[#f3eee3]/70 hover:text-[#e3a857]"
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+                  <span className="w-8 text-center font-mono text-sm" aria-live="polite">
+                    {quantity}
+                  </span>
+                  <button
+                    onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
+                    className="w-10 h-11 text-[#f3eee3]/70 hover:text-[#e3a857]"
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <button
+                  onClick={addToCart}
+                  disabled={product.stock <= 0 || busy}
+                  className="flex-1 min-w-[140px] h-11 rounded-sm border border-[#e3a857] text-[#e3a857] text-sm font-medium hover:bg-[#e3a857]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {added ? 'Added to cart ✓' : 'Add to cart'}
+                </button>
+                <button
+                  onClick={buyNow}
+                  disabled={product.stock <= 0 || busy}
+                  className="flex-1 min-w-[140px] h-11 rounded-sm text-sm font-medium text-[#0b0a08] bg-gradient-to-r from-[#f0c07f] to-[#e3a857] hover:from-[#e3a857] hover:to-[#c98a34] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Buy now
+                </button>
+                <button
+                  onClick={toggleWishlist}
+                  aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                  title={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                  className="w-11 h-11 rounded-sm border border-[#f3eee3]/15 flex items-center justify-center hover:border-[#e8604c] transition-colors"
+                >
+                  <span className={inWishlist ? 'text-[#e8604c]' : 'text-[#f3eee3]/50'}>{inWishlist ? '♥' : '♡'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Delivery + services */}
+            <div className="mt-8 space-y-4">
+              <DeliveryCheck shippingInfo={product.shipping_info} />
+              <div className="grid grid-cols-3 gap-px bg-[#f3eee3]/10 border border-[#f3eee3]/10 rounded-sm overflow-hidden text-center">
+                {[
+                  ['Free delivery', 'On every order'],
+                  [product.return_policy || 'Easy returns', 'Return policy'],
+                  [product.warranty || 'Secure checkout', product.warranty ? 'Warranty' : 'UPI · Cards · Netbanking'],
+                ].map(([title, sub]) => (
+                  <div key={sub} className="bg-[#0b0a08] px-2 py-4">
+                    <p className="text-[11px] text-[#f3eee3]/80 leading-snug">{title}</p>
+                    <p className="text-[10px] text-[#f3eee3]/35 mt-1">{sub}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* ---------------- Details ---------------- */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-20 pt-12 border-t border-[#f3eee3]/10">
+          <section>
+            <h2 className="font-display text-2xl font-semibold mb-5">About this item</h2>
+            <p className="text-sm leading-7 text-[#f3eee3]/65">{product.description}</p>
+            {product.tags?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-6">
+                {product.tags.map((t) => (
+                  <Link
+                    key={t}
+                    to={`/search?q=${encodeURIComponent(t)}`}
+                    className="text-[11px] px-3 py-1 rounded-full border border-[#f3eee3]/10 text-[#f3eee3]/45 hover:text-[#e3a857] hover:border-[#e3a857]/40"
+                  >
+                    {t}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="font-display text-2xl font-semibold mb-5">Specifications</h2>
+            <table className="w-full text-sm">
+              <tbody>
+                {Object.entries(specs)
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => (
+                    <tr key={k} className="border-b border-[#f3eee3]/[0.07]">
+                      <th scope="row" className="text-left font-normal text-[#f3eee3]/45 py-3 pr-6 w-2/5 align-top">
+                        {k}
+                      </th>
+                      <td className="py-3 text-[#f3eee3]/85">{v}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </section>
+        </div>
+
+        <Reviews product={product} reviews={reviews} onChange={load} />
       </div>
 
-      <section className="mb-16">
-        <h2 className="text-xl font-display font-semibold mb-6">Reviews</h2>
-        {reviews.length === 0 ? (
-          <p className="text-ink/40 text-sm">No reviews yet.</p>
-        ) : (
-          <div className="space-y-6">
-            {reviews.map((r) => (
-              <div key={r.id} className="border-b border-line pb-6">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-gold text-sm">{'★'.repeat(r.rating)}</span>
-                  <span className="font-medium text-sm">{r.title}</span>
-                </div>
-                <p className="text-ink/60 text-sm mb-1">{r.body}</p>
-                <p className="text-ink/30 text-xs">— {r.user_name}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {related.length > 0 && (
-        <section>
-          <h2 className="text-xl font-display font-semibold mb-6">You may also like</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
-            {related.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-        </section>
+      {related?.length > 0 && (
+        <ProductRow eyebrow="More like this" title="You may also like" products={related} loading={false} />
       )}
-    </div>
     </div>
   );
 }

@@ -17,18 +17,19 @@ export function CartProvider({ children }) {
     refreshCart();
   }, [user, refreshCart]);
 
-  async function addItem(productId, quantity = 1) {
-    const res = await api.post('/cart/add', { productId, quantity });
+  // `size` is only passed for products that have sizes (clothing, footwear).
+  async function addItem(productId, quantity = 1, size) {
+    const res = await api.post('/cart/add', { productId, quantity, ...(size ? { size } : {}) });
     setCart(res.data.cart);
   }
 
-  async function updateItem(productId, quantity) {
-    const res = await api.put('/cart/update', { productId, quantity });
+  async function updateItem(productId, quantity, size) {
+    const res = await api.put('/cart/update', { productId, quantity, ...(size ? { size } : {}) });
     setCart(res.data.cart);
   }
 
-  async function removeItem(productId) {
-    const res = await api.delete(`/cart/remove/${productId}`);
+  async function removeItem(productId, size) {
+    const res = await api.delete(`/cart/remove/${productId}`, size ? { params: { size } } : undefined);
     setCart(res.data.cart);
   }
 

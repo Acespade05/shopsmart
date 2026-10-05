@@ -36,7 +36,7 @@ router.get('/:slug', async (req, res) => {
 
     const productsResult = await pool.query(
       `SELECT id, name, slug, price, original_price, stock, images, rating, review_count,
-              brand, subcategory
+              brand, subcategory, sizes
        FROM products
        WHERE category_id = $1 AND is_active = true
        ORDER BY created_at DESC`,

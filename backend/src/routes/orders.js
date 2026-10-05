@@ -33,7 +33,7 @@ router.get('/:id', async (req, res) => {
     const order = orderResult.rows[0];
 
     const itemsResult = await pool.query(
-      `SELECT oi.quantity, oi.price, p.name, p.slug, p.images
+      `SELECT oi.quantity, oi.price, oi.size, p.name, p.slug, p.images
        FROM order_items oi JOIN products p ON p.id = oi.product_id
        WHERE oi.order_id = $1`,
       [order.id]
