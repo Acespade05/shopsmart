@@ -58,6 +58,9 @@ services:
       DB_NAME: shopsmart
       REDIS_URL: redis://redis:6379
       JWT_SECRET: local_dev_only_secret_not_for_production
+      # Local-only admin login for testing on your laptop (never used on the server)
+      ADMIN_EMAIL: admin@shopsmart.local
+      ADMIN_PASSWORD: local-admin-password
 
   frontend:
     build: ./frontend

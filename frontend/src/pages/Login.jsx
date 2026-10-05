@@ -23,7 +23,11 @@ export default function Login() {
       await login(email, password);
       navigate(next);
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      setError(
+        err.response?.status === 429
+          ? 'Too many sign-in attempts. Please wait a minute and try again.'
+          : err.response?.data?.error || 'Login failed. Please try again.'
+      );
     } finally {
       setLoading(false);
     }

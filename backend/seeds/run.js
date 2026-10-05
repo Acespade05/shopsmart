@@ -101,14 +101,26 @@ async function seed() {
     if (retired.rowCount > 0) console.log(`Retired ${retired.rowCount} old placeholder products (kept for order history)`);
 
     // --- Admin user ---
-    const adminPasswordHash = await bcrypt.hash('admin123', 10);
-    await client.query(
-      `INSERT INTO users (name, email, password, role)
-       VALUES ($1, $2, $3, 'admin')
-       ON CONFLICT (email) DO NOTHING`,
-      ['Admin', 'admin@shopsmart.com', adminPasswordHash]
-    );
-    console.log('Seeded admin user (admin@shopsmart.com / admin123)');
+    // Credentials come from the environment (.env), never from this repo.
+    // If ADMIN_PASSWORD isn't set, no admin is created; an existing admin is
+    // never overwritten here (use `npm run admin:password` to change it).
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@shopsmart.com';
+    if (process.env.ADMIN_PASSWORD) {
+      if (process.env.ADMIN_PASSWORD.length < 12) {
+        throw new Error('ADMIN_PASSWORD must be at least 12 characters');
+      }
+      const adminPasswordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
+      const adminRes = await client.query(
+        `INSERT INTO users (name, email, password, role)
+         VALUES ($1, $2, $3, 'admin')
+         ON CONFLICT (email) DO NOTHING
+         RETURNING id`,
+        ['Admin', adminEmail, adminPasswordHash]
+      );
+      console.log(adminRes.rowCount ? `Created admin user ${adminEmail}` : `Admin user ${adminEmail} already exists (password unchanged)`);
+    } else {
+      console.log('ADMIN_PASSWORD not set — skipped creating an admin user');
+    }
 
     // --- Synthetic bot customer accounts ---
     // Clearly tagged via email domain so bot-driven orders can be filtered

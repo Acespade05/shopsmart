@@ -7,7 +7,8 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "migrate": "node -e \"require('./scripts/migrate.js')\"",
-    "seed": "node seeds/run.js"
+    "seed": "node seeds/run.js",
+    "admin:password": "node scripts/admin-password.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

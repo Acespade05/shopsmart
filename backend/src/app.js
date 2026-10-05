@@ -1,4 +1,14 @@
 require('dotenv').config();
+
+// Sign-in tokens are signed with JWT_SECRET. A missing or publicly known value
+// would let anyone forge an admin token, so refuse to start with one.
+// (For a deliberate weak-secret security test, set ALLOW_WEAK_JWT_SECRET=true.)
+const KNOWN_WEAK_SECRETS = ['change_me_to_a_long_random_string', 'secret', 'changeme'];
+const jwtSecret = process.env.JWT_SECRET || '';
+if (process.env.ALLOW_WEAK_JWT_SECRET !== 'true' && (jwtSecret.length < 16 || KNOWN_WEAK_SECRETS.includes(jwtSecret))) {
+  console.error('FATAL: JWT_SECRET is missing or too weak. Set a long random JWT_SECRET in .env (see .env.example).');
+  process.exit(1);
+}
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
