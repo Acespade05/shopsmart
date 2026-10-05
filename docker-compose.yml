@@ -45,6 +45,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env - see .env.example}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@shopsmart.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Synthetic shoppers + simulated warehouse (see traffic-generator/ and src/jobs/warehouse.js)
+      SYNTHETIC_BOT_PASSWORD: ${SYNTHETIC_BOT_PASSWORD:-}
+      SIMULATE_WAREHOUSE: "true"
     volumes:
       - ./backend:/usr/src/app
       - /usr/src/app/node_modules
@@ -77,6 +80,7 @@ services:
     restart: unless-stopped
     environment:
       TARGET_URL: https://shopsmart-aisre.duckdns.org
+      SYNTHETIC_BOT_PASSWORD: ${SYNTHETIC_BOT_PASSWORD:-}
     depends_on:
       - nginx
 

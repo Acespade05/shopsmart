@@ -91,7 +91,9 @@ router.post('/login', async (req, res) => {
       if (sessionCart.items && sessionCart.items.length > 0) {
         const userCart = await getCart(`user:${user.id}`);
         for (const item of sessionCart.items) {
-          const existing = userCart.items.find((i) => i.productId === item.productId);
+          const existing = userCart.items.find(
+            (i) => i.productId === item.productId && (i.size ?? null) === (item.size ?? null)
+          );
           if (existing) {
             existing.quantity += item.quantity;
           } else {

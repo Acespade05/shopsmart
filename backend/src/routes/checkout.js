@@ -79,6 +79,23 @@ router.post('/start', async (req, res) => {
     const subtotal = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     const autoTier = await findBestTierDiscount(subtotal);
 
+    // Record that this session is in checkout. /api/metrics/active-checkouts
+    // reads this table; confirm marks it 'completed', the warehouse job marks
+    // stale ones 'abandoned'.
+    if (req.sessionId) {
+      const updated = await pool.query(
+        `UPDATE carts SET status = 'checkout', user_id = $2, updated_at = now()
+         WHERE session_id = $1 AND status IN ('active', 'checkout')`,
+        [req.sessionId, req.user.id]
+      );
+      if (updated.rowCount === 0) {
+        await pool.query(
+          `INSERT INTO carts (session_id, user_id, status) VALUES ($1, $2, 'checkout')`,
+          [req.sessionId, req.user.id]
+        );
+      }
+    }
+
     res.json({
       cart,
       subtotal: parseFloat(subtotal.toFixed(2)),

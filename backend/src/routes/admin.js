@@ -48,11 +48,12 @@ router.get('/dashboard', async (req, res) => {
 // GET /api/admin/attention — things the store operator should act on now
 router.get('/attention', async (req, res) => {
   try {
-    const [waiting, lowStock, outOfStock, returns] = await Promise.all([
+    const [waiting, lowStock, outOfStock, returns, todaySplit] = await Promise.all([
       pool.query(
         `SELECT o.id, o.total, o.status, o.created_at, u.name AS customer_name
          FROM orders o JOIN users u ON u.id = o.user_id
          WHERE o.status IN ('pending', 'confirmed') AND o.created_at < now() - INTERVAL '24 hours'
+           ${process.env.SIMULATE_WAREHOUSE === 'true' ? "AND u.email NOT LIKE '%@shopsmart-synthetic.internal'" : ''}
          ORDER BY o.created_at ASC`
       ),
       pool.query(
@@ -71,12 +72,20 @@ router.get('/attention', async (req, res) => {
          WHERE r.status = 'requested'
          ORDER BY r.created_at ASC`
       ),
+      // Same "today" definition as /api/metrics/revenue-today, split real vs traffic bots
+      pool.query(
+        `SELECT COUNT(*) FILTER (WHERE u.email LIKE '%@shopsmart-synthetic.internal')::int AS synthetic,
+                COUNT(*)::int AS total
+         FROM orders o JOIN users u ON u.id = o.user_id
+         WHERE o.created_at::date = CURRENT_DATE AND o.payment_status = 'paid'`
+      ),
     ]);
     res.json({
       waitingToShip: waiting.rows,
       lowStock: lowStock.rows,
       outOfStock: outOfStock.rows,
       pendingReturns: returns.rows,
+      ordersToday: todaySplit.rows[0],
     });
   } catch (err) {
     console.error('Admin attention error', err);

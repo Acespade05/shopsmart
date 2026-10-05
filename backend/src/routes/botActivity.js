@@ -49,4 +49,21 @@ router.get('/recent', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/bot-activity/summary?minutes=60 — visit outcomes for the admin panel
+router.get('/summary', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const minutes = Math.min(Math.max(parseInt(req.query.minutes, 10) || 60, 5), 1440);
+    const result = await pool.query(
+      `SELECT action, COUNT(*)::int AS count FROM bot_activity
+       WHERE created_at > now() - make_interval(mins => $1)
+       GROUP BY action`,
+      [minutes]
+    );
+    res.json({ minutes, outcomes: Object.fromEntries(result.rows.map((r) => [r.action, r.count])) });
+  } catch (err) {
+    console.error('Bot activity summary error', err);
+    res.status(500).json({ error: 'Failed to fetch summary' });
+  }
+});
+
 module.exports = router;

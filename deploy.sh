@@ -28,6 +28,7 @@ fail() { printf '\n\033[1;31m✗ %s\033[0m\n' "$1"; exit 1; }
 step "Checking configuration"
 [ -f .env ] || fail ".env is missing. Create it first (see .env.example)."
 grep -Eq '^JWT_SECRET=.{16,}' .env || fail "JWT_SECRET in .env is missing or too short."
+grep -Eq '^SYNTHETIC_BOT_PASSWORD=.{12,}' .env || echo "    ! SYNTHETIC_BOT_PASSWORD is not set in .env — traffic bots will browse but never sign in or buy."
 ok ".env looks good"
 
 step "Pulling latest code from GitHub"

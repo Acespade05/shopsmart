@@ -41,6 +41,50 @@ const LEGACY_PRODUCT_NAMES_BY_CATEGORY = {
   ],
 };
 
+// Synthetic shoppers for the traffic generator (fictional people, tagged email domain).
+const SYNTHETIC_CUSTOMERS = [
+  { name: 'Aarav Sharma', email: 'aarav.sharma@shopsmart-synthetic.internal', phone: '9000012345', line1: '1, MG Road', city: 'Mumbai', state: 'Maharashtra', pincode: '400050' },
+  { name: 'Priya Iyer', email: 'priya.iyer@shopsmart-synthetic.internal', phone: '9000020264', line1: '38, Station Road', city: 'Chennai', state: 'Tamil Nadu', pincode: '600020' },
+  { name: 'Rohan Mehta', email: 'rohan.mehta@shopsmart-synthetic.internal', phone: '9000028183', line1: '75, Park Street', city: 'Pune', state: 'Maharashtra', pincode: '411004' },
+  { name: 'Ananya Reddy', email: 'ananya.reddy@shopsmart-synthetic.internal', phone: '9000036102', line1: '112, Main Road', city: 'Hyderabad', state: 'Telangana', pincode: '500034' },
+  { name: 'Vikram Singh', email: 'vikram.singh@shopsmart-synthetic.internal', phone: '9000044021', line1: '149, Link Road', city: 'Delhi', state: 'Delhi', pincode: '110017' },
+  { name: 'Sneha Kulkarni', email: 'sneha.kulkarni@shopsmart-synthetic.internal', phone: '9000051940', line1: '186, MG Road', city: 'Pune', state: 'Maharashtra', pincode: '411038' },
+  { name: 'Arjun Nair', email: 'arjun.nair@shopsmart-synthetic.internal', phone: '9000059859', line1: '23, Station Road', city: 'Kochi', state: 'Kerala', pincode: '682020' },
+  { name: 'Kavya Rao', email: 'kavya.rao@shopsmart-synthetic.internal', phone: '9000067778', line1: '60, Park Street', city: 'Bengaluru', state: 'Karnataka', pincode: '560038' },
+  { name: 'Aditya Joshi', email: 'aditya.joshi@shopsmart-synthetic.internal', phone: '9000075697', line1: '97, Main Road', city: 'Mumbai', state: 'Maharashtra', pincode: '400076' },
+  { name: 'Ishita Banerjee', email: 'ishita.banerjee@shopsmart-synthetic.internal', phone: '9000083616', line1: '134, Link Road', city: 'Kolkata', state: 'West Bengal', pincode: '700019' },
+  { name: 'Rahul Verma', email: 'rahul.verma@shopsmart-synthetic.internal', phone: '9000091535', line1: '171, MG Road', city: 'Lucknow', state: 'Uttar Pradesh', pincode: '226010' },
+  { name: 'Meera Pillai', email: 'meera.pillai@shopsmart-synthetic.internal', phone: '9000099454', line1: '8, Station Road', city: 'Thiruvananthapuram', state: 'Kerala', pincode: '695010' },
+  { name: 'Karan Malhotra', email: 'karan.malhotra@shopsmart-synthetic.internal', phone: '9000107373', line1: '45, Park Street', city: 'Gurugram', state: 'Haryana', pincode: '122002' },
+  { name: 'Pooja Desai', email: 'pooja.desai@shopsmart-synthetic.internal', phone: '9000115292', line1: '82, Main Road', city: 'Ahmedabad', state: 'Gujarat', pincode: '380015' },
+  { name: 'Siddharth Gupta', email: 'siddharth.gupta@shopsmart-synthetic.internal', phone: '9000123211', line1: '119, Link Road', city: 'Noida', state: 'Uttar Pradesh', pincode: '201301' },
+  { name: 'Nikita Shah', email: 'nikita.shah@shopsmart-synthetic.internal', phone: '9000131130', line1: '156, MG Road', city: 'Surat', state: 'Gujarat', pincode: '395007' },
+  { name: 'Aniket Patil', email: 'aniket.patil@shopsmart-synthetic.internal', phone: '9000139049', line1: '193, Station Road', city: 'Nashik', state: 'Maharashtra', pincode: '422005' },
+  { name: 'Divya Menon', email: 'divya.menon@shopsmart-synthetic.internal', phone: '9000146968', line1: '30, Park Street', city: 'Bengaluru', state: 'Karnataka', pincode: '560102' },
+  { name: 'Harsh Agarwal', email: 'harsh.agarwal@shopsmart-synthetic.internal', phone: '9000154887', line1: '67, Main Road', city: 'Jaipur', state: 'Rajasthan', pincode: '302017' },
+  { name: 'Riya Chatterjee', email: 'riya.chatterjee@shopsmart-synthetic.internal', phone: '9000162806', line1: '104, Link Road', city: 'Kolkata', state: 'West Bengal', pincode: '700091' },
+  { name: 'Manish Yadav', email: 'manish.yadav@shopsmart-synthetic.internal', phone: '9000170725', line1: '141, MG Road', city: 'Patna', state: 'Bihar', pincode: '800001' },
+  { name: 'Shruti Bhat', email: 'shruti.bhat@shopsmart-synthetic.internal', phone: '9000178644', line1: '178, Station Road', city: 'Mangaluru', state: 'Karnataka', pincode: '575003' },
+  { name: 'Kunal Kapoor', email: 'kunal.kapoor@shopsmart-synthetic.internal', phone: '9000186563', line1: '15, Park Street', city: 'Chandigarh', state: 'Chandigarh', pincode: '160017' },
+  { name: 'Tanvi Jain', email: 'tanvi.jain@shopsmart-synthetic.internal', phone: '9000194482', line1: '52, Main Road', city: 'Indore', state: 'Madhya Pradesh', pincode: '452010' },
+  { name: 'Varun Krishnan', email: 'varun.krishnan@shopsmart-synthetic.internal', phone: '9000202401', line1: '89, Link Road', city: 'Chennai', state: 'Tamil Nadu', pincode: '600041' },
+  { name: 'Neha Saxena', email: 'neha.saxena@shopsmart-synthetic.internal', phone: '9000210320', line1: '126, MG Road', city: 'Bhopal', state: 'Madhya Pradesh', pincode: '462016' },
+  { name: 'Abhishek Das', email: 'abhishek.das@shopsmart-synthetic.internal', phone: '9000218239', line1: '163, Station Road', city: 'Bhubaneswar', state: 'Odisha', pincode: '751007' },
+  { name: 'Swati Mishra', email: 'swati.mishra@shopsmart-synthetic.internal', phone: '9000226158', line1: '200, Park Street', city: 'Varanasi', state: 'Uttar Pradesh', pincode: '221005' },
+  { name: 'Yash Thakur', email: 'yash.thakur@shopsmart-synthetic.internal', phone: '9000234077', line1: '37, Main Road', city: 'Mumbai', state: 'Maharashtra', pincode: '400092' },
+  { name: 'Aishwarya Gowda', email: 'aishwarya.gowda@shopsmart-synthetic.internal', phone: '9000241996', line1: '74, Link Road', city: 'Mysuru', state: 'Karnataka', pincode: '570009' },
+  { name: 'Rajat Sinha', email: 'rajat.sinha@shopsmart-synthetic.internal', phone: '9000249915', line1: '111, MG Road', city: 'Ranchi', state: 'Jharkhand', pincode: '834001' },
+  { name: 'Lavanya Subramanian', email: 'lavanya.subramanian@shopsmart-synthetic.internal', phone: '9000257834', line1: '148, Station Road', city: 'Coimbatore', state: 'Tamil Nadu', pincode: '641018' },
+  { name: 'Gaurav Bansal', email: 'gaurav.bansal@shopsmart-synthetic.internal', phone: '9000265753', line1: '185, Park Street', city: 'Delhi', state: 'Delhi', pincode: '110085' },
+  { name: 'Prachi Deshpande', email: 'prachi.deshpande@shopsmart-synthetic.internal', phone: '9000273672', line1: '22, Main Road', city: 'Nagpur', state: 'Maharashtra', pincode: '440010' },
+  { name: 'Nikhil Chauhan', email: 'nikhil.chauhan@shopsmart-synthetic.internal', phone: '9000281591', line1: '59, Link Road', city: 'Dehradun', state: 'Uttarakhand', pincode: '248001' },
+  { name: 'Sanya Arora', email: 'sanya.arora@shopsmart-synthetic.internal', phone: '9000289510', line1: '96, MG Road', city: 'Delhi', state: 'Delhi', pincode: '110024' },
+  { name: 'Omkar Sawant', email: 'omkar.sawant@shopsmart-synthetic.internal', phone: '9000297429', line1: '133, Station Road', city: 'Thane', state: 'Maharashtra', pincode: '400601' },
+  { name: 'Bhavna Trivedi', email: 'bhavna.trivedi@shopsmart-synthetic.internal', phone: '9000305348', line1: '170, Park Street', city: 'Vadodara', state: 'Gujarat', pincode: '390007' },
+  { name: 'Akash Hegde', email: 'akash.hegde@shopsmart-synthetic.internal', phone: '9000313267', line1: '7, Main Road', city: 'Bengaluru', state: 'Karnataka', pincode: '560076' },
+  { name: 'Zoya Khan', email: 'zoya.khan@shopsmart-synthetic.internal', phone: '9000321186', line1: '44, Link Road', city: 'Hyderabad', state: 'Telangana', pincode: '500028' },
+];
+
 async function seed() {
   const client = await pool.connect();
   try {
@@ -122,41 +166,40 @@ async function seed() {
       console.log('ADMIN_PASSWORD not set — skipped creating an admin user');
     }
 
-    // --- Synthetic bot customer accounts ---
-    // Clearly tagged via email domain so bot-driven orders can be filtered
-    // out of (or studied separately from) real business metrics.
-    const botPasswordHash = await bcrypt.hash('synthetic-bot-account', 10);
-    const botNames = ['Bot Shopper One', 'Bot Shopper Two', 'Bot Shopper Three', 'Bot Shopper Four', 'Bot Shopper Five'];
-    const botAddresses = [
-      { city: 'Mumbai', state: 'Maharashtra', pincode: '400001' },
-      { city: 'Bengaluru', state: 'Karnataka', pincode: '560001' },
-      { city: 'Delhi', state: 'Delhi', pincode: '110001' },
-      { city: 'Pune', state: 'Maharashtra', pincode: '411001' },
-      { city: 'Chennai', state: 'Tamil Nadu', pincode: '600001' },
-    ];
-
-    for (let i = 0; i < botNames.length; i++) {
-      const email = `bot${i + 1}@shopsmart-synthetic.internal`;
-      const userRes = await client.query(
-        `INSERT INTO users (name, email, password, role)
-         VALUES ($1, $2, $3, 'customer')
-         ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
-         RETURNING id`,
-        [botNames[i], email, botPasswordHash]
-      );
-      const userId = userRes.rows[0].id;
-
-      const addr = botAddresses[i];
-      const existingAddr = await client.query('SELECT id FROM addresses WHERE user_id = $1', [userId]);
-      if (existingAddr.rows.length === 0) {
-        await client.query(
-          `INSERT INTO addresses (user_id, name, phone, line1, city, state, pincode, is_default)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, true)`,
-          [userId, botNames[i], '9999999999', 'Synthetic Traffic Address', addr.city, addr.state, addr.pincode]
+    // --- Synthetic customer accounts (used by the traffic generator) ---
+    // Tagged by the @shopsmart-synthetic.internal email domain so their orders
+    // can be filtered out of, or studied separately from, real business data.
+    // The password comes from SYNTHETIC_BOT_PASSWORD (.env), shared with the
+    // traffic-generator container; it is never stored in this repo.
+    if (process.env.SYNTHETIC_BOT_PASSWORD) {
+      const botPasswordHash = await bcrypt.hash(process.env.SYNTHETIC_BOT_PASSWORD, 10);
+      for (const c of SYNTHETIC_CUSTOMERS) {
+        const userRes = await client.query(
+          `INSERT INTO users (name, email, password, role)
+           VALUES ($1, $2, $3, 'customer')
+           ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, password = EXCLUDED.password
+           RETURNING id`,
+          [c.name, c.email, botPasswordHash]
         );
+        const userId = userRes.rows[0].id;
+        const existingAddr = await client.query('SELECT id FROM addresses WHERE user_id = $1', [userId]);
+        if (existingAddr.rows.length === 0) {
+          await client.query(
+            `INSERT INTO addresses (user_id, name, phone, line1, city, state, pincode, is_default)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, true)`,
+            [userId, c.name, c.phone, c.line1, c.city, c.state, c.pincode]
+          );
+        }
       }
+      // Older synthetic accounts (bot1..bot5) get the same password, so none keep the old public one.
+      await client.query(
+        `UPDATE users SET password = $1 WHERE email LIKE '%@shopsmart-synthetic.internal'`,
+        [botPasswordHash]
+      );
+      console.log(`Seeded ${SYNTHETIC_CUSTOMERS.length} synthetic customer accounts`);
+    } else {
+      console.log('SYNTHETIC_BOT_PASSWORD not set — skipped synthetic customer accounts');
     }
-    console.log(`Seeded ${botNames.length} synthetic bot customer accounts with default addresses`);
 
     // --- Discount codes (manual, user-entered) ---
     const discountCodes = [

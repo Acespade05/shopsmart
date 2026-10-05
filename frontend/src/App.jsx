@@ -25,54 +25,56 @@ import NotFound from './pages/NotFound';
 // Admin pages (and their chart library) load only when /admin is opened.
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 
+// The customer-facing store: animated background, header, footer.
+function Storefront() {
+  return (
+    <>
+      <ShopSmartBackground />
+      <div className="min-h-screen flex flex-col relative z-10">
+        <Navbar />
+        <main className="flex-1">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/products" element={<ProductList />} />
+            <Route path="/products/:slug" element={<ProductDetail />} />
+            <Route path="/login" element={<DarkPage><Login /></DarkPage>} />
+            <Route path="/register" element={<DarkPage><Register /></DarkPage>} />
+            <Route path="/cart" element={<DarkPage><Cart /></DarkPage>} />
+            <Route path="/category/:slug" element={<Category />} />
+            <Route path="/wishlist" element={<DarkPage><Wishlist /></DarkPage>} />
+            <Route path="/checkout" element={<DarkPage><Checkout /></DarkPage>} />
+            <Route path="/orders" element={<DarkPage><Orders /></DarkPage>} />
+            <Route path="/orders/:id" element={<DarkPage><OrderDetail /></DarkPage>} />
+            <Route path="/search" element={<DarkPage><Search /></DarkPage>} />
+            <Route path="/profile" element={<DarkPage><Profile /></DarkPage>} />
+            {/* The public bot feed moved into Admin → Bot activity */}
+            <Route path="/activity" element={<Navigate to="/admin?tab=activity" replace />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
-
-          {/* Animated ShopSmart background */}
-          <ShopSmartBackground />
-
-          <div className="min-h-screen flex flex-col relative z-10">
-
-            <Navbar />
-
-            <main className="flex-1">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/products" element={<ProductList />} />
-                <Route path="/products/:slug" element={<ProductDetail />} />
-                <Route path="/login" element={<DarkPage><Login /></DarkPage>} />
-                <Route path="/register" element={<DarkPage><Register /></DarkPage>} />
-                <Route path="/cart" element={<DarkPage><Cart /></DarkPage>} />
-                <Route path="/category/:slug" element={<Category />} />
-                <Route path="/wishlist" element={<DarkPage><Wishlist /></DarkPage>} />
-                <Route path="/checkout" element={<DarkPage><Checkout /></DarkPage>} />
-                <Route path="/orders" element={<DarkPage><Orders /></DarkPage>} />
-                <Route path="/orders/:id" element={<DarkPage><OrderDetail /></DarkPage>} />
-                <Route path="/search" element={<DarkPage><Search /></DarkPage>} />
-                <Route path="/profile" element={<DarkPage><Profile /></DarkPage>} />
-                {/* The public bot feed moved into Admin → Bot activity */}
-                <Route path="/activity" element={<Navigate to="/admin?tab=activity" replace />} />
-                <Route
-                  path="/admin"
-                  element={
-                    <DarkPage>
-                      <Suspense fallback={<p className="max-w-6xl mx-auto px-6 py-10 text-sm text-[#f3eee3]/40">Loading…</p>}>
-                        <AdminLayout />
-                      </Suspense>
-                    </DarkPage>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </main>
-
-            <Footer />
-
-          </div>
-
+          <Routes>
+            {/* Admin is a separate app: own layout and light theme, no store header/footer */}
+            <Route
+              path="/admin"
+              element={
+                <Suspense fallback={<div className="min-h-screen bg-[#f5f6f8]" />}>
+                  <AdminLayout />
+                </Suspense>
+              }
+            />
+            <Route path="*" element={<Storefront />} />
+          </Routes>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>
