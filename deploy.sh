@@ -81,6 +81,29 @@ docker compose restart nginx
 sleep 3
 ok "nginx restarted"
 
+step "Log rotation for nginx logs"
+# nginx writes logs/nginx/*.log on this server; rotate daily, keep 14 days.
+ROTATE_CONF=/etc/logrotate.d/shopsmart-nginx
+if [ -f "$ROTATE_CONF" ]; then
+  ok "Already set up"
+elif sudo -n true 2>/dev/null; then
+  sudo tee "$ROTATE_CONF" >/dev/null <<EOF
+$(pwd)/logs/nginx/*.log {
+    su root root
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
+EOF
+  ok "Installed $ROTATE_CONF"
+else
+  echo "    ! Skipped: needs sudo. Logs will keep growing in logs/nginx/."
+fi
+
 step "Checking the live site"
 CODE=$(curl -s -o /dev/null -w '%{http_code}' --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/api/categories" || true)
 [ "$CODE" = "200" ] || { docker compose ps; fail "https://$DOMAIN/api/categories returned $CODE"; }

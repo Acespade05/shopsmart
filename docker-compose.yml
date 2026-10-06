@@ -1,8 +1,16 @@
+# Keep container logs from filling the disk: at most 5 × 20 MB per container.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:15-alpine
     container_name: shopsmart_postgres
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${DB_USER:-shopuser}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_in_env}
@@ -19,6 +27,7 @@ services:
     image: redis:7-alpine
     container_name: shopsmart_redis
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -29,6 +38,7 @@ services:
     build: ./backend
     container_name: shopsmart_app
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,6 +66,7 @@ services:
     build: ./frontend
     container_name: shopsmart_frontend
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       - app
 
@@ -63,6 +74,7 @@ services:
     image: nginx:alpine
     container_name: shopsmart_nginx
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
@@ -73,14 +85,28 @@ services:
     depends_on:
       - app
       - frontend
+    networks:
+      default:
+        # Inside Docker the site's own name points straight at nginx, so the
+        # traffic generator connects on the internal port 8443 with a valid
+        # certificate (see nginx.conf). Outside Docker nothing changes.
+        aliases:
+          - shopsmart-aisre.duckdns.org
 
   traffic-generator:
     build: ./traffic-generator
     container_name: shopsmart_traffic_bot
     restart: unless-stopped
+    logging: *default-logging
     environment:
-      TARGET_URL: https://shopsmart-aisre.duckdns.org
+      # Internal-only port: lets each synthetic shopper keep its own IP address
+      TARGET_URL: https://shopsmart-aisre.duckdns.org:8443
       SYNTHETIC_BOT_PASSWORD: ${SYNTHETIC_BOT_PASSWORD:-}
+      # Average visits per day; the hour-by-hour curve is in bot.js
+      DAILY_VISITS: ${DAILY_VISITS:-8000}
+    volumes:
+      # Customer accounts the bots signed up, kept across restarts
+      - bot_data:/data
     depends_on:
       - nginx
 
@@ -88,6 +114,7 @@ services:
     build: ./patient-metrics-agent
     container_name: shopsmart_metrics_agent
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "8080:8080"
     volumes:
@@ -95,4 +122,5 @@ services:
 
 volumes:
   postgres_data:
+  bot_data:
   metrics_data:

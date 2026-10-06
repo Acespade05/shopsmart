@@ -57,7 +57,7 @@ export default function AdminOverview() {
   if (!updated) return <p className="text-sm text-[#6b7280]">Loading…</p>;
 
   const { revenue, aov, conversion, sessions, checkouts, attention, bots: botFeed } = data;
-  const bots = botFeed?.activeBots ?? null;
+  const bots = botFeed ? botFeed.visitsLast5Min ?? botFeed.activeBots : null;
   const split = attention?.ordersToday || null;
   const list = (k) => (Array.isArray(attention?.[k]) ? attention[k] : []);
   const attentionCount =
@@ -110,9 +110,9 @@ export default function AdminOverview() {
           <Stat label="Active sessions" value={num(sessions?.activeSessions)} sub="Browsers active in last 5 min" live />
           <Stat label="In checkout" value={num(checkouts?.activeCheckouts)} sub="Started checkout in last 10 min" live />
           <Stat
-            label="Traffic bots"
+            label="Synthetic visits"
             value={bots ?? '—'}
-            sub={bots === 0 ? 'None active — check the traffic generator' : 'Active in last 60 s'}
+            sub={bots === 0 ? 'None in 5 min — check the traffic generator' : 'Bot visits finished in last 5 min'}
             warn={bots === 0}
             live
           />

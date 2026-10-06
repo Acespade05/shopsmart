@@ -14,6 +14,7 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
 const { trackSession } = require('./middleware/session');
+const { requestLog } = require('./middleware/requestLog');
 const { optionalAuthenticate } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
@@ -31,11 +32,17 @@ const botActivityRoutes = require('./routes/botActivity');
 
 const app = express();
 
+// nginx (on Docker's private network) passes the real client address in
+// X-Forwarded-For. Trust only private/loopback hops, so req.ip is the shopper's
+// IP rather than nginx's — used for sessions and the request log.
+app.set('trust proxy', 'loopback, uniquelocal');
+
 app.use(cors({
   origin: true,
   credentials: true,
 }));
 
+app.use(requestLog);
 app.use(express.json());
 app.use(cookieParser());
 

@@ -35,13 +35,16 @@ router.get('/recent', authenticate, requireAdmin, async (req, res) => {
       [limit]
     );
 
-    const activeBotsResult = await pool.query(
-      `SELECT COUNT(DISTINCT bot_id) FROM bot_activity WHERE created_at > now() - INTERVAL '60 seconds'`
+    const recentResult = await pool.query(
+      `SELECT COUNT(DISTINCT bot_id) FILTER (WHERE created_at > now() - INTERVAL '60 seconds') AS active_bots,
+              COUNT(*) AS visits_5m
+       FROM bot_activity WHERE created_at > now() - INTERVAL '5 minutes'`
     );
 
     res.json({
       activity: result.rows,
-      activeBots: parseInt(activeBotsResult.rows[0].count, 10),
+      activeBots: parseInt(recentResult.rows[0].active_bots, 10), // kept for older clients
+      visitsLast5Min: parseInt(recentResult.rows[0].visits_5m, 10),
     });
   } catch (err) {
     console.error('Bot activity fetch error', err);

@@ -3,8 +3,30 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
 const { authenticate } = require('../middleware/auth');
+const { getCart, saveCart, clearCart } = require('../services/cacheService');
 
 const router = express.Router();
+
+// Merge the guest-session cart into the account's cart, so items added
+// before signing in (or signing up) aren't lost.
+async function mergeGuestCart(sessionId, userId) {
+  if (!sessionId) return;
+  const sessionCart = await getCart(`session:${sessionId}`);
+  if (!sessionCart.items || sessionCart.items.length === 0) return;
+  const userCart = await getCart(`user:${userId}`);
+  for (const item of sessionCart.items) {
+    const existing = userCart.items.find(
+      (i) => i.productId === item.productId && (i.size ?? null) === (item.size ?? null)
+    );
+    if (existing) {
+      existing.quantity += item.quantity;
+    } else {
+      userCart.items.push(item);
+    }
+  }
+  await saveCart(`user:${userId}`, userCart);
+  await clearCart(`session:${sessionId}`);
+}
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -40,6 +62,8 @@ router.post('/register', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    await mergeGuestCart(req.sessionId, user.id);
 
     res.status(201).json({ user, token });
   } catch (err) {
@@ -83,27 +107,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // Merge any guest-session cart into this user's cart so items added
-    // before login aren't lost.
-    if (req.sessionId) {
-      const { getCart, saveCart, clearCart } = require('../services/cacheService');
-      const sessionCart = await getCart(`session:${req.sessionId}`);
-      if (sessionCart.items && sessionCart.items.length > 0) {
-        const userCart = await getCart(`user:${user.id}`);
-        for (const item of sessionCart.items) {
-          const existing = userCart.items.find(
-            (i) => i.productId === item.productId && (i.size ?? null) === (item.size ?? null)
-          );
-          if (existing) {
-            existing.quantity += item.quantity;
-          } else {
-            userCart.items.push(item);
-          }
-        }
-        await saveCart(`user:${user.id}`, userCart);
-        await clearCart(`session:${req.sessionId}`);
-      }
-    }
+    await mergeGuestCart(req.sessionId, user.id);
 
     delete user.password;
     res.json({ user, token });

@@ -9,6 +9,9 @@ const OUTCOMES = {
   payment_failed: { label: 'Payment failed', cls: 'bg-[#fef2f2] text-[#b91c1c]' },
   order_failed: { label: 'Order failed', cls: 'bg-[#fef2f2] text-[#b91c1c]' },
   visit: { label: 'Browsed', cls: 'bg-[#f3f4f6] text-[#4b5563]' },
+  // The shopper left because of the site itself
+  site_error: { label: 'Left — site error', cls: 'bg-[#fef2f2] text-[#b91c1c]' },
+  too_slow: { label: 'Left — too slow', cls: 'bg-[#fff7ed] text-[#c2410c]' },
 };
 
 function timeAgo(timestamp) {
@@ -34,7 +37,7 @@ export default function AdminActivity() {
           api.get('/bot-activity/summary?minutes=60'),
         ]);
         setActivity(feed.data.activity);
-        setActiveBots(feed.data.activeBots);
+        setActiveBots(feed.data.visitsLast5Min ?? feed.data.activeBots);
         setSummary(sum.data.outcomes);
         setError('');
       } catch {
@@ -54,9 +57,9 @@ export default function AdminActivity() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-[#6b7280]">
-        Synthetic shoppers from the traffic generator. Internal only — this traffic feeds the AI-SRE baseline and is
-        never shown to customers. Their accounts use the <span className="font-mono">@shopsmart-synthetic.internal</span>{' '}
-        email domain.
+        Synthetic shoppers from the traffic generator, one line per visit. They react to the site like people: slow
+        pages and errors make them leave, so incidents show up here and in revenue. Internal only — their accounts use
+        the <span className="font-mono">@shopsmart-synthetic.internal</span> email domain.
       </p>
       {error && <p className="text-xs text-[#dc2626]">{error}</p>}
 
@@ -65,16 +68,17 @@ export default function AdminActivity() {
           <h2 className="text-base font-semibold">Last hour</h2>
           <span className="flex items-center gap-2 text-xs text-[#6b7280]">
             <span className={`w-1.5 h-1.5 rounded-full ${activeBots > 0 ? 'bg-[#16a34a]' : 'bg-[#dc2626]'}`} />
-            {activeBots} bot{activeBots === 1 ? '' : 's'} active now
+            {activeBots} visit{activeBots === 1 ? '' : 's'} in the last 5 min
           </span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           {[
             ['Visits', visits],
             ['Added to cart', carts],
             ['Reached checkout', checkouts],
             ['Orders', purchases],
             ['Conversion', visits ? `${((purchases / visits) * 100).toFixed(1)}%` : '—'],
+            ['Left due to errors / slowness', (summary.site_error || 0) + (summary.too_slow || 0)],
           ].map(([label, value]) => (
             <div key={label} className="bg-white border border-[#e5e7eb] rounded-xl px-4 py-3">
               <p className="text-xs text-[#6b7280]">{label}</p>
@@ -96,7 +100,6 @@ export default function AdminActivity() {
                 <div key={i} className="flex items-start gap-3 px-4 py-3 text-sm">
                   <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${o.cls}`}>{o.label}</span>
                   <span className="flex-1 min-w-0 text-[#374151]">
-                    <span className="font-mono text-xs text-[#6b7280] mr-2">bot {event.bot_id}</span>
                     {event.detail}
                   </span>
                   <span className="text-[#9ca3af] text-xs font-mono shrink-0">{timeAgo(event.created_at)}</span>
