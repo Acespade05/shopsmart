@@ -23,7 +23,25 @@ import DarkPage from './components/DarkPage';
 import NotFound from './pages/NotFound';
 
 // Admin pages (and their chart library) load only when /admin is opened.
-const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+// After a redeploy, a browser holding the old index.html asks for an admin
+// chunk that no longer exists. Reload once to pick up the new build.
+const AdminLayout = lazy(() =>
+  import('./pages/admin/AdminLayout').catch((err) => {
+    const KEY = 'admin_chunk_reloaded';
+    let reloaded = false;
+    try {
+      reloaded = sessionStorage.getItem(KEY) === '1';
+      sessionStorage.setItem(KEY, '1');
+    } catch {
+      // storage blocked; fall through to reload once per page load
+    }
+    if (!reloaded) {
+      window.location.reload();
+      return new Promise(() => {});
+    }
+    throw err;
+  })
+);
 
 // The customer-facing store: animated background, header, footer.
 function Storefront() {

@@ -54,6 +54,15 @@ export default function AdminLayout() {
     setMenuOpen(false);
   }, [location.search]);
 
+  // The admin chunk loaded fine, so allow one auto-reload again after the next deploy.
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('admin_chunk_reloaded');
+    } catch {
+      // ignore
+    }
+  }, []);
+
   if (loading) return <div className="min-h-screen bg-[#f5f6f8]" />;
   if (!user) return <Navigate to="/login?next=/admin" replace />;
   if (user.role !== 'admin') return <Navigate to="/" replace />;

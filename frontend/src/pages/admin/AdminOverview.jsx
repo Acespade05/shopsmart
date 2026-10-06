@@ -8,33 +8,44 @@ const REFRESH_MS = 30000;
 // Store health at a glance. "Today" and "Live now" read the same /api/metrics
 // endpoints the AI-SRE collector uses, so the numbers here always match what
 // AI-SRE sees. Trends and charts are left to AI-SRE's own dashboards.
+// Every request the page makes. Each one loads on its own, so one slow or
+// failing endpoint only blanks its own card instead of the whole page.
+const SOURCES = {
+  revenue: '/metrics/revenue-today',
+  aov: '/metrics/aov',
+  conversion: '/metrics/conversion-rate',
+  sessions: '/metrics/active-sessions',
+  checkouts: '/metrics/active-checkouts',
+  attention: '/admin/attention',
+  bots: '/bot-activity/recent?limit=1',
+};
+
+function describeError(err) {
+  const status = err?.response?.status;
+  if (status === 401 || status === 403) return 'session expired — log out and sign in again';
+  if (status) return `HTTP ${status}`;
+  if (err?.code === 'ECONNABORTED') return 'timed out';
+  return 'network error';
+}
+
 export default function AdminOverview() {
-  const [m, setM] = useState(null);
-  const [attention, setAttention] = useState(null);
-  const [bots, setBots] = useState(null);
+  const [data, setData] = useState({});
+  const [errors, setErrors] = useState({});
   const [updated, setUpdated] = useState(null);
-  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    try {
-      const get = (url) => api.get(url).then((r) => r.data);
-      const [revenue, aov, conversion, sessions, checkouts, att, bot] = await Promise.all([
-        get('/metrics/revenue-today'),
-        get('/metrics/aov'),
-        get('/metrics/conversion-rate'),
-        get('/metrics/active-sessions'),
-        get('/metrics/active-checkouts'),
-        get('/admin/attention'),
-        get('/bot-activity/recent?limit=1').catch(() => null),
-      ]);
-      setM({ revenue, aov, conversion, sessions, checkouts });
-      setAttention(att);
-      setBots(bot?.activeBots ?? null);
-      setUpdated(new Date());
-      setError('');
-    } catch {
-      setError('Could not load store metrics. Retrying…');
-    }
+    const keys = Object.keys(SOURCES);
+    const results = await Promise.allSettled(keys.map((k) => api.get(SOURCES[k], { timeout: 20000 })));
+    const nextErrors = {};
+    const fresh = {};
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') fresh[keys[i]] = r.value.data;
+      else nextErrors[keys[i]] = describeError(r.reason);
+    });
+    // Keep the last good value for anything that failed this round
+    setData((prev) => ({ ...prev, ...fresh }));
+    setErrors(nextErrors);
+    setUpdated(new Date());
   }, []);
 
   useEffect(() => {
@@ -43,46 +54,61 @@ export default function AdminOverview() {
     return () => clearInterval(t);
   }, [load]);
 
-  if (!m || !attention) {
-    return <p className="text-sm text-[#6b7280]">{error || 'Loading…'}</p>;
-  }
+  if (!updated) return <p className="text-sm text-[#6b7280]">Loading…</p>;
 
-  const split = attention.ordersToday || { total: 0, synthetic: 0 };
+  const { revenue, aov, conversion, sessions, checkouts, attention, bots: botFeed } = data;
+  const bots = botFeed?.activeBots ?? null;
+  const split = attention?.ordersToday || null;
+  const list = (k) => (Array.isArray(attention?.[k]) ? attention[k] : []);
   const attentionCount =
-    attention.waitingToShip.length + attention.outOfStock.length + attention.lowStock.length + attention.pendingReturns.length;
+    list('waitingToShip').length + list('outOfStock').length + list('lowStock').length + list('pendingReturns').length;
+  const failed = Object.entries(errors);
+  const num = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-IN'));
 
   return (
     <div className="space-y-8">
-      {error && <p className="text-xs text-[#dc2626]">{error}</p>}
+      {failed.length > 0 && (
+        <div className="bg-[#fef2f2] border border-[#fecaca] rounded-xl px-4 py-3 text-xs text-[#b91c1c]">
+          <p className="font-medium mb-1">Some numbers couldn't be loaded — showing the last values we had. Retrying every 30 s.</p>
+          <ul className="font-mono space-y-0.5">
+            {failed.map(([k, why]) => (
+              <li key={k}>
+                /api{SOURCES[k]} — {why}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* ---------- Today ---------- */}
       <section>
         <SectionTitle title="Today" note="Same definitions as /api/metrics — what AI-SRE collects" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Stat label="Revenue today" value={`₹${fmtINR(m.revenue.revenue)}`} sub="Paid orders since midnight (UTC)" />
+          <Stat
+            label="Revenue today"
+            value={revenue ? `₹${fmtINR(revenue.revenue)}` : '—'}
+            sub="Paid orders since midnight (UTC)"
+          />
           <Stat
             label="Orders today"
-            value={m.revenue.orderCount}
-            sub={`${split.total - split.synthetic} real · ${split.synthetic} from traffic bots`}
+            value={num(revenue?.orderCount)}
+            sub={split ? `${split.total - split.synthetic} real · ${split.synthetic} from traffic bots` : ''}
           />
-          <Stat label="Avg. order value" value={`₹${fmtINR(m.aov.averageOrderValue)}`} sub="Last 7 days" />
+          <Stat label="Avg. order value" value={aov ? `₹${fmtINR(aov.averageOrderValue)}` : '—'} sub="Last 7 days" />
           <Stat
             label="Conversion rate"
-            value={`${m.conversion.conversionRate}%`}
-            sub={`${m.conversion.orders.toLocaleString('en-IN')} orders / ${m.conversion.sessions.toLocaleString('en-IN')} sessions · 7 days`}
+            value={conversion ? `${conversion.conversionRate}%` : '—'}
+            sub={conversion ? `${num(conversion.orders)} orders / ${num(conversion.sessions)} sessions · 7 days` : ''}
           />
         </div>
       </section>
 
       {/* ---------- Live ---------- */}
       <section>
-        <SectionTitle
-          title="Live now"
-          note={updated ? `Updated ${updated.toLocaleTimeString('en-IN')} · refreshes every 30 s` : ''}
-        />
+        <SectionTitle title="Live now" note={`Updated ${updated.toLocaleTimeString('en-IN')} · refreshes every 30 s`} />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Stat label="Active sessions" value={m.sessions.activeSessions} sub="Browsers active in last 5 min" live />
-          <Stat label="In checkout" value={m.checkouts.activeCheckouts} sub="Started checkout in last 10 min" live />
+          <Stat label="Active sessions" value={num(sessions?.activeSessions)} sub="Browsers active in last 5 min" live />
+          <Stat label="In checkout" value={num(checkouts?.activeCheckouts)} sub="Started checkout in last 10 min" live />
           <Stat
             label="Traffic bots"
             value={bots ?? '—'}
@@ -97,9 +123,19 @@ export default function AdminOverview() {
       <section>
         <SectionTitle
           title="Needs attention"
-          note={attentionCount === 0 ? 'Nothing to do right now' : `${attentionCount} item${attentionCount > 1 ? 's' : ''}`}
+          note={
+            !attention
+              ? ''
+              : attentionCount === 0
+                ? 'Nothing to do right now'
+                : `${attentionCount} item${attentionCount > 1 ? 's' : ''}`
+          }
         />
-        {attentionCount === 0 ? (
+        {!attention ? (
+          <div className="bg-white border border-[#e5e7eb] rounded-xl px-5 py-8 text-center text-sm text-[#6b7280]">
+            Couldn't load this section ({errors.attention || 'no data'}).
+          </div>
+        ) : attentionCount === 0 ? (
           <div className="bg-white border border-[#e5e7eb] rounded-xl px-5 py-8 text-center text-sm text-[#6b7280]">
             All clear — no late orders, stock problems or pending returns.
           </div>
@@ -108,7 +144,7 @@ export default function AdminOverview() {
             <AttentionCard
               title="Orders waiting to ship"
               hint="Placed over 24 hours ago, not yet shipped (bot orders are shipped automatically)"
-              items={attention.waitingToShip}
+              items={list('waitingToShip')}
               to="/admin?tab=orders"
               action="Open orders"
               render={(o) => (
@@ -121,7 +157,7 @@ export default function AdminOverview() {
             <AttentionCard
               title="Return requests"
               hint="Waiting for approval"
-              items={attention.pendingReturns}
+              items={list('pendingReturns')}
               to="/admin?tab=orders#returns"
               action="Review returns"
               render={(r) => (
@@ -133,7 +169,7 @@ export default function AdminOverview() {
             <AttentionCard
               title="Out of stock"
               hint="Shoppers can't buy these"
-              items={attention.outOfStock}
+              items={list('outOfStock')}
               to="/admin?tab=inventory&filter=out"
               action="Restock"
               danger
@@ -142,7 +178,7 @@ export default function AdminOverview() {
             <AttentionCard
               title="Low stock"
               hint="Fewer than 10 left"
-              items={attention.lowStock}
+              items={list('lowStock')}
               to="/admin?tab=inventory&filter=low"
               action="Manage stock"
               render={(p) => (

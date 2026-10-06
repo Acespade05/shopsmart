@@ -49,8 +49,9 @@ router.get('/conversion-rate', async (req, res) => {
     const ordersResult = await pool.query(
       `SELECT COUNT(*) FROM orders WHERE created_at > now() - INTERVAL '7 days' AND payment_status = 'paid'`
     );
+    // id is the primary key, so COUNT(*) equals COUNT(DISTINCT id) — and is much faster on a big table
     const sessionsResult = await pool.query(
-      `SELECT COUNT(DISTINCT id) FROM sessions WHERE created_at > now() - INTERVAL '7 days'`
+      `SELECT COUNT(*) FROM sessions WHERE created_at > now() - INTERVAL '7 days'`
     );
 
     const orders = parseInt(ordersResult.rows[0].count, 10);
