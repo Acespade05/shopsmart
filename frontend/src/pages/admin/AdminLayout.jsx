@@ -6,6 +6,7 @@ import AdminOrders from './AdminOrders';
 import AdminInventory from './AdminInventory';
 import AdminUsers from './AdminUsers';
 import AdminDiscounts from './AdminDiscounts';
+import AdminSales from './AdminSales';
 import AdminActivity from './AdminActivity';
 import usePageTitle from '../../hooks/usePageTitle';
 
@@ -14,6 +15,7 @@ const ICONS = {
   overview: 'M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z',
   orders: 'M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0',
   inventory: 'M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8',
+  sales: 'M19 5 5 19M6.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm11 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
   discounts: 'M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01',
   users: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm14 10v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
   activity: 'M22 12h-4l-3 9L9 3l-3 9H2',
@@ -23,7 +25,8 @@ const tabs = [
   { key: 'overview', label: 'Overview', Component: AdminOverview },
   { key: 'orders', label: 'Orders & returns', Component: AdminOrders },
   { key: 'inventory', label: 'Products & stock', Component: AdminInventory },
-  { key: 'discounts', label: 'Discounts', Component: AdminDiscounts },
+  { key: 'sales', label: 'Sales', Component: AdminSales },
+  { key: 'discounts', label: 'Coupon codes', Component: AdminDiscounts },
   { key: 'users', label: 'Customers', Component: AdminUsers },
   { key: 'activity', label: 'Bot activity', Component: AdminActivity },
 ];

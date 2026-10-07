@@ -80,9 +80,16 @@ export default function ProductCard({ product }) {
             }}
           />
         )}
-        {hasDiscount && (
-          <span className="absolute top-3 left-3 bg-coral text-paper text-xs font-mono px-2 py-1 rounded-sm">
-            -{discountPct}%
+        {(hasDiscount || product.sale) && (
+          <span className="absolute top-3 left-3 flex flex-col items-start gap-1">
+            {hasDiscount && (
+              <span className="bg-coral text-paper text-xs font-mono px-2 py-1 rounded-sm">-{discountPct}%</span>
+            )}
+            {product.sale && (
+              <span className="bg-gold text-ink text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-sm">
+                Sale
+              </span>
+            )}
           </span>
         )}
       </div>

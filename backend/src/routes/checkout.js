@@ -3,6 +3,14 @@ const pool = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const { getCart, saveCart, clearCart } = require('../services/cacheService');
 const { processPayment } = require('../services/paymentService');
+const { priceCart } = require('../services/pricing');
+const { getRedisClient } = require('../config/redis');
+
+// Successful payments are remembered for 30 minutes so /confirm can check that
+// the transaction is real, belongs to this shopper, covers the order and is
+// used only once.
+const PAYMENT_TTL_SECONDS = 30 * 60;
+const paymentKey = (transactionId) => `payment:${transactionId}`;
 
 const router = express.Router();
 
@@ -71,7 +79,8 @@ router.use(authenticate);
 // POST /api/checkout/start — validate cart, mark checkout intent
 router.post('/start', async (req, res) => {
   try {
-    const cart = await getCart(cartOwnerId(req));
+    // Today's prices, including any live sale
+    const cart = await priceCart(await getCart(cartOwnerId(req)));
     if (!cart.items || cart.items.length === 0) {
       return res.status(400).json({ error: 'Cart is empty' });
     }
@@ -117,7 +126,8 @@ router.post('/apply-coupon', async (req, res) => {
       return res.status(400).json({ error: 'code is required' });
     }
 
-    const cart = await getCart(cartOwnerId(req));
+    // Today's prices, including any live sale
+    const cart = await priceCart(await getCart(cartOwnerId(req)));
     if (!cart.items || cart.items.length === 0) {
       return res.status(400).json({ error: 'Cart is empty' });
     }
@@ -184,6 +194,17 @@ router.post('/payment', async (req, res) => {
       return res.status(402).json({ error: result.message, code: result.error });
     }
 
+    const redis = await getRedisClient();
+    await redis.set(
+      paymentKey(result.transactionId),
+      JSON.stringify({
+        userId: req.user.id,
+        amount: parseFloat(amount),
+        method,
+        expiresAt: Date.now() + PAYMENT_TTL_SECONDS * 1000,
+      }),
+      { EX: PAYMENT_TTL_SECONDS }
+    );
     res.json({ payment: result });
   } catch (err) {
     console.error('Payment error', err);
@@ -194,16 +215,35 @@ router.post('/payment', async (req, res) => {
 // POST /api/checkout/confirm
 router.post('/confirm', async (req, res) => {
   const client = await pool.connect();
+  let restorePayment = async () => {};
+  let committed = false;
   try {
     const { addressId, paymentMethod, transactionId, discountCode } = req.body;
     if (!addressId || !paymentMethod || !transactionId) {
       return res.status(400).json({ error: 'addressId, paymentMethod, and transactionId are required' });
     }
 
-    const cart = await getCart(cartOwnerId(req));
+    // Today's prices, including any live sale
+    const cart = await priceCart(await getCart(cartOwnerId(req)));
     if (!cart.items || cart.items.length === 0) {
       return res.status(400).json({ error: 'Cart is empty' });
     }
+
+    // The payment must be real, this shopper's, and not used before.
+    const redis = await getRedisClient();
+    const key = paymentKey(transactionId);
+    const paymentRaw = await redis.get(key);
+    const payment = paymentRaw ? JSON.parse(paymentRaw) : null;
+    // DEL succeeds for exactly one request, so the same payment can't place two orders
+    if (!payment || payment.userId !== req.user.id || (await redis.del(key)) !== 1) {
+      return res.status(402).json({ error: 'Payment not found or already used. Please pay again.' });
+    }
+    // If the order fails, give the payment back (until its original expiry)
+    restorePayment = async () => {
+      if (payment.expiresAt > Date.now()) {
+        await redis.set(key, paymentRaw, { PXAT: payment.expiresAt }).catch(() => {});
+      }
+    };
 
     await client.query('BEGIN');
 
@@ -216,6 +256,7 @@ router.post('/confirm', async (req, res) => {
       const stockResult = await client.query('SELECT stock FROM products WHERE id = $1 FOR UPDATE', [productId]);
       if (stockResult.rows.length === 0 || stockResult.rows[0].stock < qty) {
         await client.query('ROLLBACK');
+        await restorePayment();
         return res.status(409).json({ error: `Insufficient stock for product ${productId}` });
       }
     }
@@ -267,19 +308,30 @@ router.post('/confirm', async (req, res) => {
 
     const total = Math.max(subtotal - discount, 0);
 
+    // ₹1 tolerance for rounding. Paying less than the total happens when a
+    // price went up after payment (e.g. a sale ended) — the shopper pays again.
+    if (payment.amount + 1 < total) {
+      await client.query('ROLLBACK');
+      await restorePayment();
+      return res.status(402).json({ error: 'Prices changed since you paid. Please review your order and pay again.' });
+    }
+
+    // The sale this order was placed in (if any item got a sale price)
+    const saleId = cart.items.find((i) => i.sale)?.sale.id || null;
+
     const orderResult = await client.query(
-      `INSERT INTO orders (user_id, session_id, total, subtotal, discount, status, payment_status, payment_method, address_id)
-       VALUES ($1, $2, $3, $4, $5, 'confirmed', 'paid', $6, $7)
+      `INSERT INTO orders (user_id, session_id, total, subtotal, discount, status, payment_status, payment_method, address_id, sale_id)
+       VALUES ($1, $2, $3, $4, $5, 'confirmed', 'paid', $6, $7, $8)
        RETURNING *`,
-      [req.user.id, req.sessionId, total, subtotal, discount, paymentMethod, addressId]
+      [req.user.id, req.sessionId, total, subtotal, discount, paymentMethod, addressId, saleId]
     );
     const order = orderResult.rows[0];
     await client.query(`INSERT INTO order_status_history (order_id, status) VALUES ($1, 'confirmed')`, [order.id]);
 
     for (const item of cart.items) {
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, price, size) VALUES ($1, $2, $3, $4, $5)`,
-        [order.id, item.productId, item.quantity, item.price, item.size || null]
+        `INSERT INTO order_items (order_id, product_id, quantity, price, size, list_price) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [order.id, item.productId, item.quantity, item.price, item.size || null, item.listPrice ?? item.price]
       );
       await client.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.productId]);
       await client.query(
@@ -293,13 +345,25 @@ router.post('/confirm', async (req, res) => {
     ]);
 
     await client.query('COMMIT');
-    await clearCart(cartOwnerId(req));
+    committed = true;
+    // The order is saved; a cart that fails to clear must not undo that
+    await clearCart(cartOwnerId(req)).catch((err) => console.error('Clear cart after order failed', err));
 
     res.status(201).json({ order });
   } catch (err) {
-    await client.query('ROLLBACK');
     console.error('Confirm order error', err);
-    res.status(500).json({ error: 'Failed to place order' });
+    if (committed) {
+      // Saved but something after it failed: never hand the payment back
+      if (!res.headersSent) res.status(500).json({ error: 'Your order was placed, but something went wrong showing it.' });
+      return;
+    }
+    await restorePayment();
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // connection already gone
+    }
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to place order' });
   } finally {
     client.release();
   }

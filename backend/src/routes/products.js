@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../config/database');
+const { applySale } = require('../services/pricing');
 
 const router = express.Router();
 
@@ -81,7 +82,7 @@ router.get('/', async (req, res) => {
     );
 
     res.json({
-      products: result.rows,
+      products: await applySale(result.rows),
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -115,7 +116,8 @@ router.get('/search', async (req, res) => {
       [`%${q}%`]
     );
 
-    res.json({ products: result.rows, count: result.rows.length });
+    // Sale prices are applied after the query, so the query itself stays as it is.
+    res.json({ products: await applySale(result.rows), count: result.rows.length });
   } catch (err) {
     console.error('Search error', err);
     res.status(500).json({ error: 'Search failed' });
@@ -168,7 +170,7 @@ router.get('/:slug', async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    const product = productResult.rows[0];
+    const [product] = await applySale(productResult.rows);
 
     const reviewsResult = await pool.query(
       `SELECT r.id, r.rating, r.title, r.body, r.created_at, u.name AS user_name
@@ -189,7 +191,7 @@ router.get('/:slug', async (req, res) => {
       [product.category_id, product.id, product.subcategory]
     );
 
-    res.json({ product, reviews: reviewsResult.rows, related: relatedResult.rows });
+    res.json({ product, reviews: reviewsResult.rows, related: await applySale(relatedResult.rows) });
   } catch (err) {
     console.error('Get product error', err);
     res.status(500).json({ error: 'Failed to fetch product' });

@@ -52,6 +52,16 @@ if [ "$BEFORE" = "$AFTER" ] && [ "$FORCE" = false ]; then
 fi
 ok "$BEFORE → $AFTER: $(git log -1 --format=%s)"
 
+# Migrations only ever add tables/columns, so the running (old) version keeps
+# working with them. Running them before the new code starts means the new
+# code never sees a database it doesn't expect. (The app container mounts
+# ./backend, so it already has the new migration files after the pull.)
+if docker compose ps --status running --services 2>/dev/null | grep -qx app; then
+  step "Running database migrations (before the new code starts)"
+  docker compose exec -T app npm run migrate
+  ok "Migrations done"
+fi
+
 step "Building and starting containers"
 docker compose up -d --build
 ok "Containers started"
@@ -68,7 +78,7 @@ done
 
 step "Running database migrations"
 docker compose exec -T app npm run migrate
-ok "Migrations done"
+ok "Migrations done (anything already applied is skipped)"
 
 if [ "$SEED" = true ]; then
   step "Running catalog seed"

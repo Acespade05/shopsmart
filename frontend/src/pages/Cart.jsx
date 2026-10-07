@@ -49,7 +49,13 @@ export default function Cart() {
             <div className="flex-1 min-w-[160px]">
               <p className="font-medium text-sm mb-1">{item.name}</p>
               {item.size && <p className="text-xs text-ink/50 mb-1">Size: {item.size}</p>}
-              <p className="price-tag pl-3 text-sm">₹{fmtINR(item.price)}</p>
+              <p className="price-tag pl-3 text-sm">
+                ₹{fmtINR(item.price)}
+                {item.listPrice > item.price && (
+                  <span className="ml-2 text-xs text-ink/40 line-through">₹{fmtINR(item.listPrice)}</span>
+                )}
+              </p>
+              {item.sale && <p className="text-[11px] text-gold font-medium mt-1">{item.sale.name} price</p>}
             </div>
 
             <input

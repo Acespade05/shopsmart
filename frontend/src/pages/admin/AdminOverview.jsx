@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { fmtINR } from '../../utils/money';
+import RevenueChart from './RevenueChart';
 
 const REFRESH_MS = 30000;
 
-// Store health at a glance. "Today" and "Live now" read the same /api/metrics
-// endpoints the AI-SRE collector uses, so the numbers here always match what
-// AI-SRE sees. Trends and charts are left to AI-SRE's own dashboards.
+// Store health at a glance. Revenue and orders "today" use Indian time
+// (midnight IST). Average order value, conversion and the "Live now" numbers
+// come from the same /api/metrics endpoints AI-SRE reads (those use UTC days).
 // Every request the page makes. Each one loads on its own, so one slow or
 // failing endpoint only blanks its own card instead of the whole page.
 const SOURCES = {
@@ -18,6 +19,8 @@ const SOURCES = {
   checkouts: '/metrics/active-checkouts',
   attention: '/admin/attention',
   bots: '/bot-activity/recent?limit=1',
+  today: '/admin/revenue-series?range=day',
+  sale: '/sales/active',
 };
 
 function describeError(err) {
@@ -58,7 +61,10 @@ export default function AdminOverview() {
 
   const { revenue, aov, conversion, sessions, checkouts, attention, bots: botFeed } = data;
   const bots = botFeed ? botFeed.visitsLast5Min ?? botFeed.activeBots : null;
-  const split = attention?.ordersToday || null;
+  const todayIst = data.today?.totals || null;
+  const yesterdaySoFar = data.today?.previousSoFar || null;
+  const liveSale = data.sale?.sale && new Date(data.sale.sale.endsAt) > new Date() ? data.sale.sale : null;
+  const nextSale = data.sale?.next || null;
   const list = (k) => (Array.isArray(attention?.[k]) ? attention[k] : []);
   const attentionCount =
     list('waitingToShip').length + list('outOfStock').length + list('lowStock').length + list('pendingReturns').length;
@@ -82,17 +88,21 @@ export default function AdminOverview() {
 
       {/* ---------- Today ---------- */}
       <section>
-        <SectionTitle title="Today" note="Same definitions as /api/metrics — what AI-SRE collects" />
+        <SectionTitle title="Today" note="Since midnight IST" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Stat
             label="Revenue today"
-            value={revenue ? `₹${fmtINR(revenue.revenue)}` : '—'}
-            sub="Paid orders since midnight (UTC)"
+            value={todayIst ? `₹${fmtINR(todayIst.revenue)}` : revenue ? `₹${fmtINR(revenue.revenue)}` : '—'}
+            sub={
+              yesterdaySoFar
+                ? `₹${fmtINR(yesterdaySoFar.revenue)} by this time yesterday`
+                : 'Paid orders'
+            }
           />
           <Stat
             label="Orders today"
-            value={num(revenue?.orderCount)}
-            sub={split ? `${split.total - split.synthetic} real · ${split.synthetic} from traffic bots` : ''}
+            value={num(todayIst ? todayIst.orders : revenue?.orderCount)}
+            sub={todayIst ? `${todayIst.orders - todayIst.botOrders} real · ${todayIst.botOrders} from traffic bots` : ''}
           />
           <Stat label="Avg. order value" value={aov ? `₹${fmtINR(aov.averageOrderValue)}` : '—'} sub="Last 7 days" />
           <Stat
@@ -103,10 +113,13 @@ export default function AdminOverview() {
         </div>
       </section>
 
+      {/* ---------- Revenue over time ---------- */}
+      <RevenueChart />
+
       {/* ---------- Live ---------- */}
       <section>
         <SectionTitle title="Live now" note={`Updated ${updated.toLocaleTimeString('en-IN')} · refreshes every 30 s`} />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <Stat label="Active sessions" value={num(sessions?.activeSessions)} sub="Browsers active in last 5 min" live />
           <Stat label="In checkout" value={num(checkouts?.activeCheckouts)} sub="Started checkout in last 10 min" live />
           <Stat
@@ -116,6 +129,26 @@ export default function AdminOverview() {
             warn={bots === 0}
             live
           />
+          <Link to="/admin?tab=sales" className="block hover:opacity-90">
+            {liveSale ? (
+              <Stat
+                label="Sale running"
+                value={`${liveSale.discountPercent}% off`}
+                sub={`${liveSale.name} · ends ${new Date(liveSale.endsAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`}
+                live
+              />
+            ) : (
+              <Stat
+                label="Sale"
+                value="None running"
+                sub={
+                  nextSale
+                    ? `Next: ${nextSale.name}, ${new Date(nextSale.startsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                    : 'Nothing scheduled'
+                }
+              />
+            )}
+          </Link>
         </div>
       </section>
 
@@ -205,7 +238,7 @@ function SectionTitle({ title, note }) {
 
 function Stat({ label, value, sub, live, warn }) {
   return (
-    <div className="bg-white border border-[#e5e7eb] rounded-xl px-5 py-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+    <div className="h-full bg-white border border-[#e5e7eb] rounded-xl px-5 py-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
       <p className="text-xs font-medium text-[#6b7280] flex items-center gap-2">
         {live && <span className={`w-1.5 h-1.5 rounded-full ${warn ? 'bg-[#dc2626]' : 'bg-[#16a34a]'}`} />}
         {label}

@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../config/database');
+const { applySale } = require('../services/pricing');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
@@ -14,7 +15,7 @@ router.get('/', async (req, res) => {
        WHERE w.user_id = $1 ORDER BY w.created_at DESC`,
       [req.user.id]
     );
-    res.json({ wishlist: result.rows });
+    res.json({ wishlist: await applySale(result.rows) });
   } catch (err) {
     console.error('Get wishlist error', err);
     res.status(500).json({ error: 'Failed to fetch wishlist' });

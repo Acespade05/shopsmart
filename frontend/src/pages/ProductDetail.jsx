@@ -225,6 +225,11 @@ export default function ProductDetail() {
 
             {/* Price */}
             <div className="mt-6 pb-6 border-b border-[#f3eee3]/10">
+              {product.sale && (
+                <p className="inline-block mb-3 text-[11px] font-semibold uppercase tracking-wider bg-[#C08A2E] text-[#0b0a08] px-2 py-1 rounded-sm">
+                  {product.sale.name} · extra {product.sale.discountPercent}% off
+                </p>
+              )}
               <div className="flex items-baseline gap-3 flex-wrap">
                 {hasDiscount && <span className="text-2xl text-[#e8604c] font-light">-{discountPct}%</span>}
                 <span className="text-3xl font-semibold font-mono">{inr(price)}</span>
@@ -232,6 +237,9 @@ export default function ProductDetail() {
               {hasDiscount && (
                 <p className="text-xs text-[#f3eee3]/40 mt-1">
                   M.R.P.: <span className="line-through">{inr(mrp)}</span>
+                  {product.sale && product.regular_price && parseFloat(product.regular_price) < mrp && (
+                    <> · Regular price: <span className="line-through">{inr(parseFloat(product.regular_price))}</span></>
+                  )}
                 </p>
               )}
               <p className="text-[11px] text-[#f3eee3]/35 mt-1">Inclusive of all taxes</p>

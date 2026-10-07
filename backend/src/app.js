@@ -26,9 +26,11 @@ const checkoutRoutes = require('./routes/checkout');
 const orderRoutes = require('./routes/orders');
 const metricsRoutes = require('./routes/metrics');
 const adminRoutes = require('./routes/admin');
+const adminSalesRoutes = require('./routes/adminSales');
 const reviewRoutes = require('./routes/reviews');
 const wishlistRoutes = require('./routes/wishlist');
 const botActivityRoutes = require('./routes/botActivity');
+const salesRoutes = require('./routes/sales');
 
 const app = express();
 
@@ -61,10 +63,12 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/metrics', metricsRoutes);
+app.use('/api/admin', adminSalesRoutes); // sales calendar + revenue chart
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/bot-activity', botActivityRoutes);
+app.use('/api/sales', salesRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });

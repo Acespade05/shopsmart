@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../config/database');
+const { applySale } = require('../services/pricing');
 
 const router = express.Router();
 
@@ -43,7 +44,7 @@ router.get('/:slug', async (req, res) => {
       [category.id]
     );
 
-    res.json({ category, products: productsResult.rows });
+    res.json({ category, products: await applySale(productsResult.rows) });
   } catch (err) {
     console.error('Get category error', err);
     res.status(500).json({ error: 'Failed to fetch category' });

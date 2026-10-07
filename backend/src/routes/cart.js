@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../config/database');
 const { getCart, saveCart, clearCart } = require('../services/cacheService');
+const { priceCart } = require('../services/pricing');
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ function sameLine(item, productId, size) {
 router.get('/', async (req, res) => {
   try {
     const cart = await getCart(cartOwnerId(req));
-    res.json({ cart });
+    res.json({ cart: await priceCart(cart) });
   } catch (err) {
     console.error('Get cart error', err);
     res.status(500).json({ error: 'Failed to fetch cart' });
@@ -68,7 +69,7 @@ router.post('/add', async (req, res) => {
     }
 
     await saveCart(owner, cart);
-    res.json({ cart });
+    res.json({ cart: await priceCart(cart) });
   } catch (err) {
     console.error('Add to cart error', err);
     res.status(500).json({ error: 'Failed to add item to cart' });
@@ -99,7 +100,7 @@ router.put('/update', async (req, res) => {
     }
 
     await saveCart(owner, cart);
-    res.json({ cart });
+    res.json({ cart: await priceCart(cart) });
   } catch (err) {
     console.error('Update cart error', err);
     res.status(500).json({ error: 'Failed to update cart' });
@@ -122,7 +123,7 @@ router.delete('/remove/:productId', async (req, res) => {
     }
 
     await saveCart(owner, cart);
-    res.json({ cart });
+    res.json({ cart: await priceCart(cart) });
   } catch (err) {
     console.error('Remove from cart error', err);
     res.status(500).json({ error: 'Failed to remove item' });

@@ -2,8 +2,14 @@
 //
 // Arrivals: visits arrive at random (Poisson) at a rate that follows an Indian
 // e-commerce day — quiet 2–6 am, building through the day, peaking 8–11 pm —
-// busier at weekends and in the first days of the month (payday), with a sale
-// spike every 5th day. DAILY_VISITS sets the average visits per day.
+// busier at weekends and in the first days of the month (payday).
+// DAILY_VISITS sets the average visits per day.
+//
+// Sales: the admin schedules them (Admin → Sales). Shoppers learn about a sale
+// the way people do — from the store (the /api/sales/active call every page
+// makes for the banner). While one is live, more people come (the bigger the
+// discount, the bigger the crowd), with a rush in the first hour and a last-
+// day push; they add sale items to carts more often and check out more.
 //
 // Each visitor is a person with their own IP address (Indian ISPs), browser
 // and phone/desktop, and keeps them on return visits. A visit makes the same
@@ -330,10 +336,21 @@ class Visit {
       await Promise.all(assetPaths.map((p) => this.call('GET', p, undefined, 'page assets', { json: false })));
       this.v.hasAssets = true;
     }
-    const boot = [this.get('/api/categories', 'menu'), this.get('/api/cart', 'cart')];
+    const boot = [
+      this.get('/api/categories', 'menu'),
+      this.get('/api/cart', 'cart'),
+      this.request('GET', '/api/sales/active'), // sale banner
+    ];
     if (this.token) boot.push(this.request('GET', '/api/auth/me'));
     const results = await Promise.all(boot);
-    const me = results[2];
+    if (results[2].ok && results[2].data) {
+      const was = currentSale?.id;
+      currentSale = results[2].data.sale || null;
+      if ((currentSale?.id || null) !== (was || null)) {
+        console.log(currentSale ? `[sale] "${currentSale.name}" is live (${currentSale.discountPercent}% off)` : '[sale] no sale running');
+      }
+    }
+    const me = results[3];
     if (me && !me.ok) {
       // token expired
       tokens.delete(this.v.email);
@@ -398,11 +415,27 @@ function istParts(now) {
   };
 }
 
-// Sale: every 5th day, 5:30–7:30 pm IST (same window as before)
-function isSaleEvent(now = new Date()) {
-  const dayOfYear = Math.floor((now - new Date(Date.UTC(now.getUTCFullYear(), 0, 0))) / 86400000);
-  const hour = now.getUTCHours();
-  return dayOfYear % 5 === 0 && hour >= 12 && hour < 14;
+// The sale the store is showing, as last seen by any shopper's page load
+let currentSale = null;
+function liveSale(now = new Date()) {
+  if (!currentSale) return null;
+  const start = new Date(currentSale.startsAt).getTime();
+  const end = new Date(currentSale.endsAt).getTime();
+  return now.getTime() >= start && now.getTime() < end ? currentSale : null;
+}
+
+// How much busier the store is during a sale
+function saleFactor(now = new Date()) {
+  const sale = liveSale(now);
+  if (!sale) return 1;
+  // 20% off → ~1.7×, 30% → ~2×, 50% → ~2.75× (less when only some categories are on sale)
+  let factor = 1 + (sale.discountPercent / 100) * 3.5 * (sale.categories ? 0.6 : 1);
+  const minutesIn = (now.getTime() - new Date(sale.startsAt).getTime()) / 60000;
+  const minutesLeft = (new Date(sale.endsAt).getTime() - now.getTime()) / 60000;
+  factor *= 1 + 1.2 * Math.exp(-minutesIn / 25); // launch rush, fades over ~1 hour
+  const hoursLong = (new Date(sale.endsAt) - new Date(sale.startsAt)) / 3600e3;
+  if (hoursLong > 6 && minutesLeft < 180) factor *= 1.15; // "ends tonight" push on longer sales
+  return factor;
 }
 
 // Slow-moving random noise (±12%, changes every 15 min) so days aren't identical
@@ -420,28 +453,26 @@ function visitsPerMinute(now = new Date()) {
   const shape = (HOURLY[h0] * (1 - frac) + HOURLY[(h0 + 1) % 24] * frac) / HOURLY_MEAN;
   const weekday = day === 0 ? 1.28 : day === 6 ? 1.2 : day === 5 ? 1.05 : 1;
   const payday = date <= 5 ? 1.15 : date >= 26 ? 0.92 : 1;
-  const sale = isSaleEvent(now) ? 2.2 : 1;
-  return (DAILY_VISITS / 1440) * shape * weekday * payday * sale * noiseFactor(now) * RATE_SCALE;
+  return (DAILY_VISITS / 1440) * shape * weekday * payday * saleFactor(now) * noiseFactor(now) * RATE_SCALE;
 }
 
 // ================================================================ shopper behaviour
 // Cheaper products get added to carts far more often, which keeps the average
 // order value realistic: ~₹2,300 on average, median ~₹600, a long tail of
 // phones and appliances (fitted on the products shoppers actually view).
-function addToCartChance(product, saleMode) {
+function addToCartChance(product) {
   const price = parseFloat(product.price) || 1000;
-  const base = saleMode ? 0.065 : 0.042;
+  const base = product.sale ? 0.065 : 0.042; // sale items get picked up more
   return base * Math.min(2, Math.pow(2000 / price, 0.68));
 }
 
 // One shopper's visit. Returns how it ended: { v, action, detail }.
 async function shopperVisit(botId) {
-  const saleMode = isSaleEvent();
   const isReturning = returning.length > 0 && chance(0.32);
   const visitor = isReturning ? pick(returning) : newVisitor();
   const v = new Visit(visitor, botId);
   try {
-    const detail = await shop(v, visitor, isReturning, saleMode);
+    const detail = await shop(v, visitor, isReturning);
     return { v, action: 'purchase', detail };
   } catch (err) {
     if (err instanceof Leave) return { v, action: err.action, detail: err.why };
@@ -449,7 +480,7 @@ async function shopperVisit(botId) {
   }
 }
 
-async function shop(v, visitor, isReturning, saleMode) {
+async function shop(v, visitor, isReturning) {
   const viewed = [];
 
   // ---- 1. Arrive
@@ -520,6 +551,7 @@ async function shop(v, visitor, isReturning, saleMode) {
 
   // ---- 2. Browse products, maybe add some to the cart
   let cartCount = 0;
+  let saleItems = 0;
   const views = landing.kind === 'product' ? randomInt(1, 4) : weighted([[1, 30], [2, 25], [3, 18], [4, 12], [5, 8], [6, 7]])[0];
   for (let i = 0; i < views; i++) {
     const p = i === 0 && landing.kind === 'product' ? pool[0] : pick(pool);
@@ -535,11 +567,14 @@ async function shop(v, visitor, isReturning, saleMode) {
     if (v.token && chance(0.3)) await v.request('GET', '/api/wishlist');
     await think(4000, 15000);
 
-    if (product.stock > 0 && chance(addToCartChance(product, saleMode))) {
+    if (product.stock > 0 && chance(addToCartChance(product))) {
       const size = product.sizes?.length ? pick(product.sizes) : undefined;
       const qty = parseFloat(product.price) < 800 && chance(0.2) ? 2 : 1;
       const add = await v.post('/api/cart/add', { productId: product.id, quantity: qty, size }, 'add to cart');
-      if (add.ok) cartCount++;
+      if (add.ok) {
+        cartCount++;
+        if (product.sale) saleItems++;
+      }
       await think(800, 2500);
     }
     if (catBySlug[product.category_slug] && chance(0.1)) break; // wandered off
@@ -553,10 +588,11 @@ async function shop(v, visitor, isReturning, saleMode) {
   const cartRes = await v.get('/api/cart', 'cart');
   const cart = cartRes.data?.cart;
   const subtotal = (cart?.items || []).reduce((s, i) => s + i.price * i.quantity, 0);
-  v.log.push(`cart ${rupees(subtotal)}`);
+  v.log.push(`cart ${rupees(subtotal)}${saleItems ? ' with sale items' : ''}`);
   await v.request('GET', '/api/checkout/offers');
   await think();
-  if (!chance(saleMode ? 0.48 : 0.36)) throw new Leave('abandoned_cart', 'abandoned cart');
+  // Sale prices make people less likely to sit on their cart
+  if (!chance(saleItems ? 0.48 : 0.36)) throw new Leave('abandoned_cart', 'abandoned cart');
 
   // ---- 4. Checkout: sign in (returning customer) or sign up (new customer)
   if (!BOT_PASSWORD) throw new Leave('abandoned_cart', 'left at sign-in (no bot password set)');
@@ -695,7 +731,8 @@ setInterval(() => {
   console.log(
     `[${new Date().toISOString()}] rate ${visitsPerMinute().toFixed(1)}/min · in progress ${active} · ` +
       `last 10 min: ${stats.visits} visits, ${stats.purchases} orders, ${stats.siteErrors} left on errors, ` +
-      `${stats.tooSlow} left (slow)${stats.dropped ? `, ${stats.dropped} dropped (cap)` : ''} · ${accounts.length} customer accounts`
+      `${stats.tooSlow} left (slow)${stats.dropped ? `, ${stats.dropped} dropped (cap)` : ''} · ${accounts.length} customer accounts` +
+      (liveSale() ? ` · SALE: ${liveSale().name} (${saleFactor().toFixed(1)}× traffic)` : '')
   );
   Object.keys(stats).forEach((k) => (stats[k] = 0));
 }, 10 * 60000 * Math.min(1, TIME_SCALE * 20));

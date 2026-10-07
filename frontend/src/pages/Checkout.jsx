@@ -89,10 +89,28 @@ export default function Checkout() {
     : 0;
   const total = subtotal - effectiveDiscount;
 
+  // Prices can change while the shopper is on this page (a sale starts or
+  // ends). Re-load the cart and offers, and ask them to check the new total.
+  async function refreshPrices() {
+    await refreshCart();
+    const res = await api.post('/checkout/start', {});
+    setAutoTier(res.data.autoTier);
+    if (couponResult) await handleApplyCoupon(couponCode);
+    return res.data.subtotal;
+  }
+
   async function handlePlaceOrder() {
     setError('');
     setPlacing(true);
     try {
+      // Pay the server's current total, never a stale one
+      const start = await api.post('/checkout/start', {});
+      if (Math.abs(start.data.subtotal - subtotal) > 0.5) {
+        await refreshPrices();
+        setError('Prices have changed since you opened this page. Please check the new total and place your order again.');
+        setPlacing(false);
+        return;
+      }
       const paymentRes = await api.post('/checkout/payment', {
         amount: total,
         method: paymentMethod,
@@ -109,6 +127,9 @@ export default function Checkout() {
       saveCoupon('');
       navigate(`/orders/${orderRes.data.order.id}`, { state: { justPlaced: true } });
     } catch (err) {
+      if (err.response?.status === 402 && err.config?.url?.includes('/confirm')) {
+        await refreshPrices().catch(() => {});
+      }
       setError(err.response?.data?.error || 'Something went wrong placing your order. Please try again.');
       setPlacing(false);
     }

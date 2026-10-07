@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import Navbar from './components/Navbar';
+import SaleBanner from './components/SaleBanner';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import ProductList from './pages/ProductList';
@@ -49,6 +50,7 @@ function Storefront() {
     <>
       <ShopSmartBackground />
       <div className="min-h-screen flex flex-col relative z-10">
+        <SaleBanner />
         <Navbar />
         <main className="flex-1">
           <Routes>
