@@ -115,10 +115,16 @@ services:
     container_name: shopsmart_metrics_agent
     restart: unless-stopped
     logging: *default-logging
-    ports:
-      - "8080:8080"
     volumes:
       - metrics_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      AGENT_TOKEN: ${AGENT_TOKEN}
+      AGENT_DRY_RUN: "true"
+      REMEDIATION_TARGET: shopsmart_app
+    ports:
+      - "8080:8080"
+    
 
 volumes:
   postgres_data:

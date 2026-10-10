@@ -21,7 +21,8 @@ DB_PATH = "/data/metrics.db"
 SAMPLE_INTERVAL_SECONDS = 10
 
 app = Flask(__name__)
-
+from remediation_api import bp as remediation_bp
+app.register_blueprint(remediation_bp)
 
 def get_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
