@@ -7,7 +7,7 @@ RUN apk add --no-cache gcc python3-dev musl-dev linux-headers
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY collector.py .
+COPY . .
 
 RUN mkdir -p /data
 
