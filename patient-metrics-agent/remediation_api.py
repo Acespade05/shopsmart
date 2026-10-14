@@ -32,6 +32,7 @@ Safety:
   - injected load is bounded by INJECT_SECONDS (default 90s) and self-expires.
 """
 import os
+import re
 import shlex
 import subprocess
 import threading
@@ -40,6 +41,12 @@ import time
 from flask import Blueprint, request, jsonify
 
 bp = Blueprint("remediation", __name__)
+
+# --- traffic telemetry (read nginx access log for RPS + error/429 rate) ---
+NGINX_ACCESS_LOG = os.environ.get("NGINX_ACCESS_LOG", "/var/log/nginx/access.log")
+# matches the shopsmart log_format: client_ip - user [time] "METHOD path HTTP/x" status ...
+_LINE_RE = re.compile(r'^(\S+) \S+ \S+ \[[^\]]+\] "\S+ (\S+)[^"]*" (\d{3})')
+_traffic = {"offset": 0, "last_time": None}
 
 AGENT_TOKEN = os.environ.get("AGENT_TOKEN", "")
 DRY_RUN = os.environ.get("AGENT_DRY_RUN", "true").lower() == "true"
@@ -117,6 +124,59 @@ def containers():
     except Exception as e:
         return jsonify({"containers": {}, "error": str(e)}), 200
     return jsonify({"containers": out}), 200
+
+
+@bp.route("/traffic", methods=["GET"])
+def traffic():
+    """Requests/sec + 5xx-rate + 429-rate since the last call, read from the nginx
+    access log. The 429-rate is the attack signature — nginx's own rate limit
+    shedding load. Read-only; no token needed. Returns available:false if the log
+    isn't mounted into the agent."""
+    try:
+        size = os.stat(NGINX_ACCESS_LOG).st_size
+    except OSError:
+        return jsonify({"available": False, "reason": "access log not readable"}), 200
+
+    now = time.time()
+    # first call, or the log was rotated/truncated -> re-anchor, report nothing yet
+    if _traffic["last_time"] is None or size < _traffic["offset"]:
+        _traffic["offset"] = size
+        _traffic["last_time"] = now
+        return jsonify({"available": True, "requests_per_sec": 0.0, "error_rate": 0.0,
+                        "rate_limited_rate": 0.0, "requests": 0, "window_s": 0,
+                        "top_ip": None, "top_ip_count": 0}), 200
+
+    elapsed = max(now - _traffic["last_time"], 0.001)
+    reqs = s5xx = s429 = 0
+    ips = {}
+    try:
+        with open(NGINX_ACCESS_LOG, "r", errors="ignore") as f:
+            f.seek(_traffic["offset"])
+            for line in f:
+                m = _LINE_RE.match(line)
+                if not m:
+                    continue
+                ip, _path, status = m.group(1), m.group(2), int(m.group(3))
+                reqs += 1
+                if status >= 500:
+                    s5xx += 1
+                if status == 429:
+                    s429 += 1
+                ips[ip] = ips.get(ip, 0) + 1
+            _traffic["offset"] = f.tell()
+    except OSError as e:
+        return jsonify({"available": False, "reason": str(e)}), 200
+    _traffic["last_time"] = now
+
+    top_ip, top_cnt = (max(ips.items(), key=lambda x: x[1]) if ips else (None, 0))
+    return jsonify({
+        "available": True,
+        "requests_per_sec": round(reqs / elapsed, 1),
+        "error_rate": round(s5xx / reqs, 3) if reqs else 0.0,
+        "rate_limited_rate": round(s429 / reqs, 3) if reqs else 0.0,
+        "requests": reqs, "window_s": round(elapsed, 1),
+        "top_ip": top_ip, "top_ip_count": top_cnt,
+    }), 200
 
 
 @bp.route("/actions/execute", methods=["POST"])
