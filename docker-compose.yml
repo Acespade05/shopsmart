@@ -120,7 +120,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       AGENT_TOKEN: ${AGENT_TOKEN}
-      AGENT_DRY_RUN: "true"
+      AGENT_DRY_RUN: "false"
       REMEDIATION_TARGET: "shopsmart_app,shopsmart_nginx"
     ports:
       - "8080:8080"
