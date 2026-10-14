@@ -79,6 +79,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
+      - ./nginx/blocklist.conf:/etc/nginx/blocklist.conf:ro
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./logs/nginx:/var/log/nginx
@@ -116,6 +117,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     volumes:
+      - ./nginx/blocklist.conf:/etc/nginx/blocklist.conf:rw
       - metrics_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
       - ./logs/nginx:/var/log/nginx:ro

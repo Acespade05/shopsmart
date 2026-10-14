@@ -1,22 +1,3 @@
-"""Remediation + chaos endpoint for the ShopSmart patient agent.
-
-Drop this file into `patient-metrics-agent/` and register it in collector.py:
-    from remediation_api import bp as remediation_bp
-    app.register_blueprint(remediation_bp)
-
-The Doctor calls POST /actions/execute with {"type","target"} to run a
-whitelisted container action. Supported actions: restart, stop, start.
-Used both for self-healing (restart) and for the dashboard Chaos Lab
-(stop/start to inject and clear a real outage).
-
-Safety, layered:
-  - X-Agent-Token must match AGENT_TOKEN (no token set -> everything rejected).
-  - Only whitelisted (action, target) pairs run; anything else is refused.
-  - AGENT_DRY_RUN=true logs the action and returns success WITHOUT touching
-    Docker — for safe end-to-end testing.
-  - Port 8080 should be firewalled to the Doctor's IP only.
-"""
-
 """Patient remediation + chaos API (v3).
 
 Exposes POST /actions/execute for the Doctor. Two kinds of action, both
@@ -56,6 +37,58 @@ INJECT_SECONDS = int(os.environ.get("INJECT_SECONDS", "90"))
 INJECT_VM_BYTES = os.environ.get("INJECT_VM_BYTES", "1G")      # memory to hold
 INJECT_CPU_WORKERS = os.environ.get("INJECT_CPU_WORKERS", "0") # 0 = all cores
 INJECT_HDD_BYTES = os.environ.get("INJECT_HDD_BYTES", "1G")    # scratch file size
+
+# --- dynamic IP blocking (edge mitigation beyond nginx's static rate limit) ---
+BLOCK_SECONDS = int(os.environ.get("BLOCK_SECONDS", "120"))   # auto-expire a block
+NGINX_CONTAINER = os.environ.get("NGINX_CONTAINER", "shopsmart_nginx")
+BLOCKLIST_PATH = os.environ.get("BLOCKLIST_PATH", "/etc/nginx/blocklist.conf")
+_IP_RE = re.compile(r'^\d{1,3}(\.\d{1,3}){3}(/\d{1,2})?$')
+_blocked = {}            # ip -> expiry epoch
+_block_lock = threading.Lock()
+# clear any stale denylist left from a previous run (best effort)
+try:
+    open(BLOCKLIST_PATH, "w").close()
+except OSError:
+    pass
+
+
+def _nginx_reload():
+    import docker
+    docker.from_env().containers.get(NGINX_CONTAINER).exec_run("nginx -s reload")
+
+
+def _rewrite_blocklist():
+    with open(BLOCKLIST_PATH, "w") as f:
+        for ip in _blocked:
+            f.write(f"deny {ip};\n")
+
+
+def _block_ip(ip):
+    with _block_lock:
+        _blocked[ip] = time.time() + BLOCK_SECONDS
+        _rewrite_blocklist()
+    _nginx_reload()
+
+    def _expire():
+        time.sleep(BLOCK_SECONDS)
+        with _block_lock:
+            if _blocked.get(ip, 0) <= time.time():
+                _blocked.pop(ip, None)
+                _rewrite_blocklist()
+        try:
+            _nginx_reload()
+        except Exception:
+            pass
+    threading.Thread(target=_expire, daemon=True).start()
+    return True, f"blocked {ip} at nginx for {BLOCK_SECONDS}s"
+
+
+def _unblock_all():
+    with _block_lock:
+        _blocked.clear()
+        _rewrite_blocklist()
+    _nginx_reload()
+    return True, "cleared all IP blocks"
 
 # containers the Doctor may act on + report status for
 _targets_env = os.environ.get("REMEDIATION_TARGETS") or os.environ.get(
@@ -192,20 +225,44 @@ def execute():
     # validate whitelist
     is_container = atype in CONTAINER_ACTIONS and target in CONTAINER_TARGETS
     is_inject = atype == "inject" and target in INJECT_TARGETS
-    if not (is_container or is_inject):
+    is_block = atype == "block_ip" and bool(_IP_RE.match(target))
+    is_unblock = atype == "unblock_all"
+    if not (is_container or is_inject or is_block or is_unblock):
         return jsonify({"success": False,
                         "output": f"not whitelisted: {atype} {target}"}), 200
 
     if DRY_RUN:
-        verb = _STRESS[target].format(t=INJECT_SECONDS) if is_inject else f"{atype} {target}"
+        if is_inject:
+            verb = _STRESS[target].format(t=INJECT_SECONDS)
+        elif is_block:
+            verb = f"block {target} at nginx for {BLOCK_SECONDS}s"
+        elif is_unblock:
+            verb = "clear all IP blocks"
+        else:
+            verb = f"{atype} {target}"
         return jsonify({"success": True, "output": f"DRY_RUN: would {verb}"}), 200
 
     try:
         if is_container:
             out = _run_container_action(atype, target)
-        else:
+        elif is_inject:
             ok, out = _run_injection(target)
+            return jsonify({"success": ok, "output": out}), 200
+        elif is_block:
+            ok, out = _block_ip(target)
+            return jsonify({"success": ok, "output": out}), 200
+        else:  # unblock_all
+            ok, out = _unblock_all()
             return jsonify({"success": ok, "output": out}), 200
         return jsonify({"success": True, "output": out}), 200
     except Exception as e:
         return jsonify({"success": False, "output": f"error: {e}"}), 200
+
+
+@bp.route("/blocks", methods=["GET"])
+def blocks():
+    """Currently active IP blocks (ip -> seconds remaining). Read-only."""
+    now = time.time()
+    with _block_lock:
+        out = {ip: max(0, round(exp - now)) for ip, exp in _blocked.items()}
+    return jsonify({"blocks": out}), 200
