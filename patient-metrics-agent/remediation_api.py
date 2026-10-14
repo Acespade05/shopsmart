@@ -168,15 +168,30 @@ def _security_scan():
     client = docker.from_env()
     out = {}
     try:
-        r = client.containers.get(APP_CONTAINER).exec_run(
-            "npm audit --json", workdir=APP_WORKDIR)
-        data = json.loads(r.output.decode(errors="ignore") or "{}")
+        # demux so npm's warnings (stderr) don't corrupt the JSON on stdout
+        res = client.containers.get(APP_CONTAINER).exec_run(
+            ["npm", "audit", "--json"], workdir=APP_WORKDIR, demux=True)
+        if isinstance(res.output, tuple):
+            stdout, stderr = res.output
+        else:
+            stdout, stderr = res.output, None
+        text = (stdout or b"").decode(errors="ignore")
+        i = text.find("{")                       # skip any leading non-JSON noise
+        data = json.loads(text[i:]) if i >= 0 else {}
         v = (data.get("metadata") or {}).get("vulnerabilities") or {}
-        out["npm_audit"] = {"critical": v.get("critical", 0), "high": v.get("high", 0),
-                            "moderate": v.get("moderate", 0), "low": v.get("low", 0),
-                            "total": v.get("total", sum(v.values()) if v else 0)}
+        if v:
+            total = v.get("total")
+            if total is None:
+                total = sum(n for n in v.values() if isinstance(n, int))
+            out["npm_audit"] = {"critical": v.get("critical", 0), "high": v.get("high", 0),
+                                "moderate": v.get("moderate", 0), "low": v.get("low", 0),
+                                "total": total}
+        else:
+            # no vulnerabilities block -> surface what npm actually said, so it's debuggable
+            raw = (stderr or b"").decode(errors="ignore") if stderr else text
+            out["npm_audit"] = {"error": "unexpected npm output: " + (raw[:200] or "empty")}
     except Exception as e:
-        out["npm_audit"] = {"error": str(e)[:150]}
+        out["npm_audit"] = {"error": str(e)[:200]}
     out["scanned_at"] = time.time()
     return out
 
