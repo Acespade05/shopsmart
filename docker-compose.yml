@@ -121,7 +121,7 @@ services:
     environment:
       AGENT_TOKEN: ${AGENT_TOKEN}
       AGENT_DRY_RUN: "false"
-      REMEDIATION_TARGET: "shopsmart_app,shopsmart_nginx"
+      REMEDIATION_TARGETS: "shopsmart_app,shopsmart_nginx,shopsmart_postgres,shopsmart_redis"
     ports:
       - "8080:8080"
     
