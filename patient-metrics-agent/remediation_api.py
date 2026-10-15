@@ -17,7 +17,6 @@ import os
 import random
 import re
 import shlex
-import subprocess
 import threading
 import time
 
@@ -33,12 +32,30 @@ _traffic = {"offset": 0, "last_time": None}
 
 AGENT_TOKEN = os.environ.get("AGENT_TOKEN", "")
 DRY_RUN = os.environ.get("AGENT_DRY_RUN", "true").lower() == "true"
-INJECT_SECONDS = int(os.environ.get("INJECT_SECONDS", "90"))
-# Tune these to your instance so the load actually crosses the Doctor's
-# thresholds without OOM-killing the box. Defaults suit a ~2 GB instance.
-INJECT_VM_BYTES = os.environ.get("INJECT_VM_BYTES", "1G")      # memory to hold
-INJECT_CPU_WORKERS = os.environ.get("INJECT_CPU_WORKERS", "0") # 0 = all cores
-INJECT_HDD_BYTES = os.environ.get("INJECT_HDD_BYTES", "1G")    # scratch file size
+INJECT_SECONDS = int(os.environ.get("INJECT_SECONDS", "60"))
+# The stress runs INSIDE the app container (not the agent), so that restarting
+# the app actually kills the stressor and reclaims its memory — making
+# high_memory a clean "restart -> resolved", not an escalation. Needs stress-ng
+# in the app image (see backend/Dockerfile).
+INJECT_CONTAINER = os.environ.get("INJECT_CONTAINER", "shopsmart_app")
+INJECT_CPU_WORKERS = os.environ.get("INJECT_CPU_WORKERS", "1")  # bounded: 1 worker
+INJECT_HDD_BYTES = os.environ.get("INJECT_HDD_BYTES", "600M")   # scratch file size
+# Target host-memory % the memory inject aims for (crosses MEM_HIGH=90 cleanly).
+INJECT_MEM_TARGET = float(os.environ.get("INJECT_MEM_TARGET", "0.93"))
+
+
+def _mem_vm_bytes():
+    """Bytes to allocate so host memory reaches ~INJECT_MEM_TARGET, capped so we
+    never grab more than 85% of what's actually free (avoids a hard OOM cascade)."""
+    try:
+        import psutil
+        vm = psutil.virtual_memory()
+        used = vm.total - vm.available
+        need = int(INJECT_MEM_TARGET * vm.total) - used
+        cap = int(vm.available * 0.85)
+        return max(150 * 1024 * 1024, min(need, cap))
+    except Exception:
+        return 400 * 1024 * 1024
 
 # --- dynamic IP blocking (edge mitigation beyond nginx's static rate limit) ---
 # Uses a $client_ip map (not `deny`), so it blocks by the logical client — which
@@ -151,7 +168,9 @@ def _attack(kind):
                     s.get(f"{ATTACK_SITE}/api/{p}", headers=hdr, timeout=4)
             except Exception:
                 pass
-    workers = ATTACK_WORKERS if kind == "flood" else max(3, ATTACK_WORKERS // 3)
+    # scanner needs enough 404 volume to stand out from background bot traffic;
+    # brute-force is detected by absolute login-429 count, so a few workers suffice.
+    workers = ATTACK_WORKERS if kind in ("flood", "scan") else max(3, ATTACK_WORKERS // 3)
     for _ in range(workers):
         threading.Thread(target=worker, daemon=True).start()
     return True, f"{kind} attack from {ATTACK_SRC_IP} for {ATTACK_SECONDS}s"
@@ -206,16 +225,19 @@ CONTAINER_TARGETS = {t.strip() for t in _targets_env.split(",") if t.strip()}
 CONTAINER_ACTIONS = {"restart", "stop", "start"}
 INJECT_TARGETS = {"memory", "cpu", "disk"}
 
-# bounded stress-ng recipes (each self-terminates after --timeout)
-_STRESS = {
-    "memory": f"stress-ng --vm 2 --vm-bytes {INJECT_VM_BYTES} --vm-keep --timeout {{t}}s",
-    "cpu":    f"stress-ng --cpu {INJECT_CPU_WORKERS} --timeout {{t}}s",
-    "disk":   f"stress-ng --hdd 1 --hdd-bytes {INJECT_HDD_BYTES} --timeout {{t}}s",
-}
-
 # only one injection at a time
 _inject_lock = threading.Lock()
 _inject_active = {"target": None, "until": 0}
+
+
+def _stress_cmd(target):
+    """Bounded stress-ng command for a target; self-terminates after --timeout."""
+    t = INJECT_SECONDS
+    if target == "memory":
+        return f"stress-ng --vm 1 --vm-bytes {_mem_vm_bytes()} --vm-keep --timeout {t}s"
+    if target == "cpu":
+        return f"stress-ng --cpu {INJECT_CPU_WORKERS} --timeout {t}s"
+    return f"stress-ng --hdd 1 --hdd-bytes {INJECT_HDD_BYTES} --temp-path /tmp --timeout {t}s"
 
 
 def _run_container_action(action, target):
@@ -227,11 +249,13 @@ def _run_container_action(action, target):
 
 
 def _run_injection(target):
-    cmd = _STRESS[target].format(t=INJECT_SECONDS)
+    cmd = _stress_cmd(target)
 
     def _worker():
         try:
-            subprocess.run(shlex.split(cmd), timeout=INJECT_SECONDS + 15)
+            import docker
+            # run the load INSIDE the app container, so a restart kills it
+            docker.from_env().containers.get(INJECT_CONTAINER).exec_run(shlex.split(cmd))
         except Exception:
             pass
         finally:
@@ -245,7 +269,7 @@ def _run_injection(target):
         _inject_active["target"] = target
         _inject_active["until"] = time.time() + INJECT_SECONDS
     threading.Thread(target=_worker, daemon=True).start()
-    return True, f"injecting {target} load for {INJECT_SECONDS}s"
+    return True, f"injecting {target} load into {INJECT_CONTAINER} for {INJECT_SECONDS}s"
 
 
 @bp.route("/containers", methods=["GET"])
@@ -320,8 +344,8 @@ def traffic():
     def _top(d):
         return max(d.items(), key=lambda x: x[1]) if d else (None, 0)
     top_ip, top_cnt = _top(ips)
-    login_ip, _ = _top(login_ips)
-    scan_ip, _ = _top(scan_ips)
+    login_ip, login_cnt = _top(login_ips)
+    scan_ip, scan_cnt = _top(scan_ips)
     return jsonify({
         "available": True,
         "requests_per_sec": round(reqs / elapsed, 1),
@@ -331,7 +355,11 @@ def traffic():
         "login_429": login429,
         "requests": reqs, "window_s": round(elapsed, 1),
         "top_ip": top_ip, "top_ip_count": top_cnt,
-        "login_top_ip": login_ip, "scan_top_ip": scan_ip,
+        # per-source absolute counts, so one attacker's signal isn't diluted by
+        # normal background traffic (the fraction can stay low under bot load).
+        "login_top_ip": login_ip, "login_top_count": login_cnt,
+        "scan_top_ip": scan_ip, "scan_top_count": scan_cnt,
+        "not_found_count": s404,
     }), 200
 
 
@@ -361,7 +389,7 @@ def execute():
 
     if DRY_RUN:
         if is_inject:
-            verb = _STRESS[target].format(t=INJECT_SECONDS)
+            verb = _stress_cmd(target)
         elif is_block:
             verb = f"block {target} at nginx for {BLOCK_SECONDS}s"
         elif is_unblock:
